@@ -6,66 +6,55 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>423</width>
+    <width>478</width>
     <height>279</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
-    <width>423</width>
+    <width>478</width>
     <height>279</height>
    </size>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
+  <property name="toolButtonStyle">
+   <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
+  </property>
+  <property name="documentMode">
+   <bool>false</bool>
+  </property>
+  <property name="tabShape">
+   <enum>QTabWidget::TabShape::Rounded</enum>
+  </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_2">
-    <item row="1" column="0">
-     <widget class="QPushButton" name="pushButton">
-      <property name="text">
-       <string>Executar</string>
-      </property>
-     </widget>
-    </item>
-    <item row="0" column="0">
+    <item row="3" column="0">
      <layout class="QGridLayout" name="gridLayout">
-      <item row="2" column="1" colspan="2">
-       <widget class="QLabel" name="label_3">
-        <property name="font">
-         <font>
-          <family>Rockwell</family>
-          <bold>true</bold>
-         </font>
-        </property>
+      <item row="5" column="1">
+       <widget class="QPushButton" name="pushButton_2">
         <property name="text">
-         <string>Tipo de processo</string>
+         <string>Inserir</string>
         </property>
        </widget>
-      </item>
-      <item row="5" column="1" colspan="2">
-       <widget class="QLabel" name="label_2">
-        <property name="font">
-         <font>
-          <family>Rockwell</family>
-          <bold>true</bold>
-         </font>
-        </property>
-        <property name="text">
-         <string>Relatório de processos</string>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="2">
-       <widget class="QLineEdit" name="lineEdit"/>
       </item>
       <item row="0" column="2">
        <widget class="QLabel" name="label">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="font">
          <font>
           <family>Verdana</family>
-          <pointsize>14</pointsize>
-          <bold>false</bold>
+          <pointsize>22</pointsize>
+          <italic>false</italic>
+          <bold>true</bold>
+          <strikeout>false</strikeout>
+          <kerning>true</kerning>
          </font>
         </property>
         <property name="layoutDirection">
@@ -80,28 +69,15 @@
         <property name="alignment">
          <set>Qt::AlignmentFlag::AlignCenter</set>
         </property>
-       </widget>
-      </item>
-      <item row="1" column="0" colspan="4">
-       <widget class="Line" name="line_2">
-        <property name="frameShadow">
-         <enum>QFrame::Shadow::Plain</enum>
-        </property>
-        <property name="lineWidth">
-         <number>4</number>
-        </property>
-        <property name="midLineWidth">
-         <number>2</number>
-        </property>
-        <property name="orientation">
-         <enum>Qt::Orientation::Horizontal</enum>
+        <property name="wordWrap">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
-      <item row="6" column="1">
-       <widget class="QPushButton" name="pushButton_2">
-        <property name="text">
-         <string>Inserir</string>
+      <item row="5" column="2">
+       <widget class="QLineEdit" name="lineEdit">
+        <property name="readOnly">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -121,8 +97,116 @@
         </property>
        </widget>
       </item>
+      <item row="0" column="1">
+       <widget class="QLabel" name="logo">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>50</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+        <property name="pixmap">
+         <pixmap>../../../../../Downloads/conf-icon (1).ico</pixmap>
+        </property>
+        <property name="scaledContents">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0" colspan="4">
+       <widget class="Line" name="line_1">
+        <property name="frameShadow">
+         <enum>QFrame::Shadow::Plain</enum>
+        </property>
+        <property name="lineWidth">
+         <number>4</number>
+        </property>
+        <property name="midLineWidth">
+         <number>2</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Orientation::Horizontal</enum>
+        </property>
+       </widget>
+      </item>
       <item row="4" column="1" colspan="2">
-       <widget class="Line" name="line">
+       <widget class="QLabel" name="label_2">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Maximum">
+          <horstretch>0</horstretch>
+          <verstretch>39</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="font">
+         <font>
+          <family>Rockwell</family>
+          <pointsize>22</pointsize>
+          <fontweight>Thin</fontweight>
+         </font>
+        </property>
+        <property name="autoFillBackground">
+         <bool>true</bool>
+        </property>
+        <property name="text">
+         <string>Relatório de processos</string>
+        </property>
+        <property name="scaledContents">
+         <bool>true</bool>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+        <property name="margin">
+         <number>5</number>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1" colspan="2">
+       <widget class="QLabel" name="label_3">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="font">
+         <font>
+          <family>Rockwell</family>
+          <pointsize>22</pointsize>
+          <bold>false</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>Tipo de processo</string>
+        </property>
+        <property name="scaledContents">
+         <bool>true</bool>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignBottom|Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft</set>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+        <property name="margin">
+         <number>5</number>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1" colspan="2">
+       <widget class="Line" name="line_3">
         <property name="frameShadow">
          <enum>QFrame::Shadow::Plain</enum>
         </property>
@@ -139,9 +223,44 @@
       </item>
      </layout>
     </item>
+    <item row="4" column="0">
+     <widget class="QPushButton" name="pushButton">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="focusPolicy">
+       <enum>Qt::FocusPolicy::StrongFocus</enum>
+      </property>
+      <property name="accessibleDescription">
+       <string/>
+      </property>
+      <property name="layoutDirection">
+       <enum>Qt::LayoutDirection::LeftToRight</enum>
+      </property>
+      <property name="text">
+       <string>Executar</string>
+      </property>
+      <property name="autoDefault">
+       <bool>false</bool>
+      </property>
+      <property name="default">
+       <bool>true</bool>
+      </property>
+      <property name="flat">
+       <bool>false</bool>
+      </property>
+     </widget>
+    </item>
    </layout>
   </widget>
-  <widget class="QStatusBar" name="statusBar"/>
+  <widget class="QStatusBar" name="statusBar">
+   <property name="styleSheet">
+    <string notr="true">background-color: rgb(85, 170, 255);</string>
+   </property>
+  </widget>
  </widget>
  <resources/>
  <connections/>
