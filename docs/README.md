@@ -1,7 +1,7 @@
 # Sites para pesquisa
 
 [PJE](https://pje-consulta-publica.tjmg.jus.br/)
-- 51476981020238130024
+- 5147698-10.2023.8.13.0024
   
 [ECAC](https://cav.receita.fazenda.gov.br/autenticacao/login)
 - Indisponível por acesso pelo gov
