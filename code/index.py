@@ -131,7 +131,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
 
         self.logo.setPixmap(QPixmap(resource_path("src\\imgs\\procc-icon.ico")))
-        # self.icon.addFile(resource_path("src\\imgs\\upload-icon.png"), QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon = QIcon()
+        icon.addFile(resource_path("src\\imgs\\upload-icon.png"), QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        self.pushButton_2.setIcon(icon)
+
 
     def loading(self):
         ...
