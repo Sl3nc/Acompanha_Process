@@ -66,15 +66,15 @@ class Arquivo:
             raise Exception(
                 f'Formato inválido do arquivo: {caminho[ultima_barra+1:]}')
 
-    def __formato_ascii(self, caminho):
+    def __formato_ascii(self, caminho) -> str:
         caminho_uni = unidecode(caminho)
         os.renames(caminho, caminho_uni)
         return caminho_uni
     
-    def envio_invalido(self):
+    def envio_invalido(self) -> bool:
         return True if len(self.caminho) == 0 else False
 
-    def ler(self):
+    def ler(self) -> dict:
         ref = {}
         arq_DF = pd.read_excel(self.caminho, usecols='A:B', header=None)
         arq_dict = arq_DF.to_dict('index')
@@ -82,16 +82,23 @@ class Arquivo:
             ref[arq[1]] = arq[0]
         return ref
 
-    def alterar(self, conteudo: dict):
+    def alterar(self, conteudo: dict) -> None:
         wb = load_workbook(self.caminho)
         ws = wb.active
-        for index, valor in enumerate(conteudo.values(), 1):
-            #if ws.cell(index, self.COL_NUM).value == numero:
-            ws.cell(index, self.COL_INDEX, valor)
+        for index, conteudo in enumerate(conteudo.values(), 1):
+            valor_novo = ''
+            for movimento in conteudo:
+                if movimento[:10] not in ws.cell(index, self.COL_NUM).value:
+                    valor_novo = f'{valor_novo} §#§ {movimento}'
+
+            if ws.cell(index, self.COL_INDEX).value == None:
+                ws.cell(index, self.COL_INDEX, '')
+            ws.cell(index, self.COL_INDEX).value = \
+                ws.cell(index, self.COL_INDEX).value + valor_novo
 
         wb.save(self.caminho)
 
-    def abrir(self):
+    def abrir(self) -> None:
         messagebox.showinfo(title='Aviso', message='Abrindo o arquivo gerado!')
         os.startfile(self.caminho)
 
@@ -129,7 +136,7 @@ class Tribunal:
     __metaclass__ = ABCMeta
 
     def __init__(self, options = ()) -> None:
-        self.browser = Browser().make_chrome_browser(*options)
+        self.browser = Browser().make_chrome_browser(options)
         pass
 
     @abstractmethod
@@ -156,7 +163,7 @@ class PJE(Tribunal):
     LINK_JANELA = 'https://pje-consulta-publica.tjmg.jus.br/pje/ConsultaPublica/DetalheProcessoConsultaPublica/listView.seam?ca'
 
     def __init__(self) -> None:
-        super().__init__(('--no-startup-window'))
+        super().__init__(('--headless'))
         pass
 
     def exec(self, num_processo) -> str:
@@ -173,7 +180,10 @@ class PJE(Tribunal):
 
         link_janela = metodo_janela[metodo_janela.rfind('='):]
 
-        return ' | '.join(x.text for x in self.__valor_janela(link_janela))
+        return [
+            conteudo.text for conteudo \
+                in self.__valor_janela(link_janela)
+        ]
 
     def __valor_janela(self, endereco: str):
         self.browser.get(self.LINK_JANELA + endereco[:len(endereco)-2])
@@ -191,13 +201,13 @@ class Juiz:
         }
         pass
 
-    def pesquisar(self, processos: dict):
+    def pesquisar(self, processos: dict) -> dict:
         ref = {}
         for num, nome in processos.items():
             ref[num] = self.__apurar(nome).exec(num)
         return ref
 
-    def __apurar(self, nome:str):
+    def __apurar(self, nome:str) -> Tribunal:
         for key, value in self.ref.items():
             if nome == key:
                 return value 
