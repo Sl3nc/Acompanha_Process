@@ -85,11 +85,9 @@ class Arquivo:
     def alterar(self, conteudo: dict):
         wb = load_workbook(self.caminho)
         ws = wb.active
-        print(conteudo.values())
-
         for index, valor in enumerate(conteudo.values(), 1):
             #if ws.cell(index, self.COL_NUM).value == numero:
-            ws.cell(index, self.COL_INDEX, valor.text)
+            ws.cell(index, self.COL_INDEX, valor)
 
         wb.save(self.caminho)
 
@@ -153,12 +151,12 @@ class PJE(Tribunal):
     INPUT = 'fPP:numProcesso-inputNumeroProcessoDecoration:numProcesso-inputNumeroProcesso'
     BTN_PESQUISAR = 'fPP:searchProcessos'
     JANELA_PROCESSO = '#fPP\\:processosTable\\:632256959\\:j_id245 > a'
-    TABELA_CONTEUDO = 'j_id134:processoEvento'
+    TABELA_CONTEUDO = 'j_id134:processoEvento:tb'
     LINK_BASE = 'https://pje-consulta-publica.tjmg.jus.br/'
     LINK_JANELA = 'https://pje-consulta-publica.tjmg.jus.br/pje/ConsultaPublica/DetalheProcessoConsultaPublica/listView.seam?ca'
 
     def __init__(self) -> None:
-        super().__init__()
+        super().__init__(('--no-startup-window'))
         pass
 
     def exec(self, num_processo) -> str:
@@ -175,7 +173,7 @@ class PJE(Tribunal):
 
         link_janela = metodo_janela[metodo_janela.rfind('='):]
 
-        return '\n'.join(x.text for x in self.__valor_janela(link_janela))
+        return ' | '.join(x.text for x in self.__valor_janela(link_janela))
 
     def __valor_janela(self, endereco: str):
         self.browser.get(self.LINK_JANELA + endereco[:len(endereco)-2])
@@ -183,8 +181,7 @@ class PJE(Tribunal):
         sleep(self.TIME_TO_WAIT)
 
         tbody = self.browser.find_element(By.ID, self.TABELA_CONTEUDO)
-        results = tbody.find_elements(By.TAG_NAME, 'span')
-        return results
+        return tbody.find_elements(By.TAG_NAME, 'span')
 
 class Juiz:
     def __init__(self) -> None:
