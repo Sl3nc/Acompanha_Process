@@ -182,7 +182,7 @@ class PJE(Tribunal):
 
         return [
             conteudo.text for conteudo \
-                in self.__valor_janela(link_janela)
+                in self.__valor_janela(link_janela) if conteudo.text != ''
         ]
 
     def __valor_janela(self, endereco: str):
