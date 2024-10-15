@@ -7,6 +7,7 @@ from time import sleep
 from tkinter import messagebox
 from tkinter.filedialog import askopenfilename
 
+import traceback
 import sys
 import os
 import string
@@ -102,9 +103,8 @@ class Browser:
     ROOT_FOLDER = Path(__file__).parent
     CHROME_DRIVER_PATH = ROOT_FOLDER / 'drivers' / 'chromedriver.exe'
 
-    def __init__(self, options = '') -> None:
-        self.browser = self.make_chrome_browser(*options)
-        pass
+    def __init__(self, option = '') -> webdriver.Chrome:
+        return self.make_chrome_browser(option)
 
     def make_chrome_browser(self,*options: str) -> webdriver.Chrome:
         chrome_options = webdriver.ChromeOptions()
@@ -126,12 +126,11 @@ class Browser:
         return browser
 
 class Tribunal:
-    TIME_TO_WAIT = 10
+    TIME_TO_WAIT = 3
     __metaclass__ = ABCMeta
 
-    def __init__(self, link, option = '') -> None:
+    def __init__(self, option = '') -> None:
         self.browser = Browser(option)
-        self.browser.get(link)
         pass
 
     @abstractmethod
@@ -139,54 +138,74 @@ class Tribunal:
         raise NotImplementedError("Implemente este método")
     
 class EPROC(Tribunal):
+    LINK = 'https://eproc1g.trf6.jus.br/eproc/externo_controlador.php?acao=processo_consulta_publica'
+
     def __init__(self) -> None:
-        super().__init__('https://eproc1g.trf6.jus.br/eproc/externo_controlador.php?acao=processo_consulta_publica')
+        super().__init__()
         pass
     
-    def exec(self):
+    def exec(self, num_processo):
         ...
 
 class PJE(Tribunal):
     CLASS_ELEMENTS = 'col-sm-12'
+    INPUT = 'fPP:numProcesso-inputNumeroProcessoDecoration:numProcesso-inputNumeroProcesso'
+    BTN_PESQUISAR = 'fPP:searchProcessos'
+    JANELA_PROCESSO = '#fPP\\:processosTable\\:632256959\\:j_id245 > a'
+    TABELA_CONTEUDO = 'j_id134:processoEvento'
+    LINK_BASE = 'https://pje-consulta-publica.tjmg.jus.br/'
+    LINK_JANELA = 'https://pje-consulta-publica.tjmg.jus.br/pje/ConsultaPublica/DetalheProcessoConsultaPublica/listView.seam?ca'
 
     def __init__(self) -> None:
-        super().__init__('https://pje-consulta-publica.tjmg.jus.br/')
+        super().__init__()
+        self.browser.get(self.LINK_BASE)
         pass
 
     def exec(self, num_processo):
-        self.browser.find_element(By.NAME, 
-            'fPP:numProcesso-inputNumeroProcessoDecoration:numProcesso-inputNumeroProcesso').send_keys(num_processo)
+        self.browser.find_element(By.NAME, self.INPUT).send_keys(num_processo)
 
 
-        self.browser.find_element(By.NAME, 'fPP:searchProcessos').click()
+        self.browser.find_element(By.NAME, self.BTN_PESQUISAR).click()
 
         sleep(self.TIME_TO_WAIT)
 
-        self.browser.find_element(By.CSS_SELECTOR,'#fPP\\:processosTable\\:632256959\\:j_id245 > a').click()
+        metodo_janela = self.browser.find_element(By.CSS_SELECTOR, self.JANELA_PROCESSO).get_attribute('onclick')
 
-        return {num_processo : conteudo}
+        link_janela = metodo_janela[metodo_janela.rfind('='):]
+
+        return {num_processo: self.__valor_janela(link_janela)}
+
+    def __valor_janela(self, endereco: str):
+        self.browser.get(self.LINK_JANELA + endereco[:len(endereco)-2])
+
+        sleep(self.TIME_TO_WAIT)
+
+        tbody = self.browser.find_element(By.ID, self.TABELA_CONTEUDO)
+        results = tbody.find_elements(By.TAG_NAME, 'span')
+        for value in results:
+            print(value.text)
+        return results
 
 class Juiz:
     def __init__(self) -> None:
         self.ref = {
             'pje': PJE(),
-            'eproc': EPROC()
+            #'eproc': EPROC()
         }
         pass
 
     def pesquisar(self, processos: dict):
         ref = {}
         for num, nome in processos.items():
-            ref[num] = self.__apurar(nome)
-
-        for num, tribunal in ref.items():
-            tribunal.exec(num)  
+            ref[num] = self.__apurar(nome).exec(num)
+        print('teste')
+        return ref
 
     def __apurar(self, nome:str):
         for key, value in self.ref.items():
             if nome == key:
                 return value 
-        raise Exception('Processo de tribunal não identificado')
+        raise Exception(f'Tribunal "{nome}" não identificado')
     
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent = None):
@@ -200,19 +219,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.pushButton_2.setIcon(icon)
 
         self.pushButton_2.clicked.connect(
-            lambda: self.file.inserir(self.pushButton_2))
+            lambda: self.file.inserir(self.pushButton_2)
+        )
+
+        self.pushButton.clicked.connect(
+            lambda: self.buscar()
+        )
 
     def buscar(self):
-        if self.file.envio_invalido():
-            return Exception('Favor anexar seu relatório de processos')
+        try:
+            if self.file.envio_invalido():
+                raise Exception('Favor anexar seu relatório de processos')
 
-        juiz = Juiz()        
-        processos = self.file.ler()
-        for processo in processos:
-            juiz.add_processo(processo['numero'], processo['tribunal'])
-        result = juiz.pesquisar()
-        self.file.alterar(result)
-        self.file.abrir()
+            juiz = Juiz()        
+            processos = self.file.ler()
+            result = juiz.pesquisar(processos)
+            self.file.alterar(result)
+            self.file.abrir()
+        except Exception as err:
+            traceback.print_exc()
+            messagebox.showerror('Aviso', err)
 
     def loading(self):
         ...
