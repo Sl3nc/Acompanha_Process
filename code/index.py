@@ -85,10 +85,11 @@ class Arquivo:
     def alterar(self, conteudo: dict):
         wb = load_workbook(self.caminho)
         ws = wb.active
+        print(conteudo.values())
 
-        for index, numero, valor in enumerate(conteudo.items(), 1):
-            if ws.cell(index, self.COL_NUM).value == numero:
-                ws.cell(index, self.COL_INDEX, valor)
+        for index, valor in enumerate(conteudo.values(), 1):
+            #if ws.cell(index, self.COL_NUM).value == numero:
+            ws.cell(index, self.COL_INDEX, valor.text)
 
         wb.save(self.caminho)
 
@@ -101,10 +102,10 @@ class Arquivo:
 
 class Browser:
     ROOT_FOLDER = Path(__file__).parent
-    CHROME_DRIVER_PATH = ROOT_FOLDER / 'drivers' / 'chromedriver.exe'
+    CHROME_DRIVER_PATH = ROOT_FOLDER / 'src' / 'drivers' / 'chromedriver.exe'
 
-    def __init__(self, option = '') -> webdriver.Chrome:
-        return self.make_chrome_browser(option)
+    def __init__(self) -> None:
+        pass
 
     def make_chrome_browser(self,*options: str) -> webdriver.Chrome:
         chrome_options = webdriver.ChromeOptions()
@@ -126,11 +127,11 @@ class Browser:
         return browser
 
 class Tribunal:
-    TIME_TO_WAIT = 3
+    TIME_TO_WAIT = 2
     __metaclass__ = ABCMeta
 
-    def __init__(self, option = '') -> None:
-        self.browser = Browser(option)
+    def __init__(self, options = ()) -> None:
+        self.browser = Browser().make_chrome_browser(*options)
         pass
 
     @abstractmethod
@@ -158,10 +159,11 @@ class PJE(Tribunal):
 
     def __init__(self) -> None:
         super().__init__()
-        self.browser.get(self.LINK_BASE)
         pass
 
-    def exec(self, num_processo):
+    def exec(self, num_processo) -> str:
+        self.browser.get(self.LINK_BASE)
+
         self.browser.find_element(By.NAME, self.INPUT).send_keys(num_processo)
 
 
@@ -173,7 +175,7 @@ class PJE(Tribunal):
 
         link_janela = metodo_janela[metodo_janela.rfind('='):]
 
-        return {num_processo: self.__valor_janela(link_janela)}
+        return '\n'.join(x.text for x in self.__valor_janela(link_janela))
 
     def __valor_janela(self, endereco: str):
         self.browser.get(self.LINK_JANELA + endereco[:len(endereco)-2])
@@ -182,8 +184,6 @@ class PJE(Tribunal):
 
         tbody = self.browser.find_element(By.ID, self.TABELA_CONTEUDO)
         results = tbody.find_elements(By.TAG_NAME, 'span')
-        for value in results:
-            print(value.text)
         return results
 
 class Juiz:
@@ -198,7 +198,6 @@ class Juiz:
         ref = {}
         for num, nome in processos.items():
             ref[num] = self.__apurar(nome).exec(num)
-        print('teste')
         return ref
 
     def __apurar(self, nome:str):
