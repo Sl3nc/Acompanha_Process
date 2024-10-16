@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QMainWindow, QApplication, QPushButton
 from PySide6.QtGui import QPixmap, QIcon
 from PySide6.QtCore import QSize
-from src.window import Ui_MainWindow
+from src.window_process import Ui_MainWindow
 from pathlib import Path
 from time import sleep
 from tkinter import messagebox
@@ -12,6 +12,7 @@ import sys
 import os
 import string
 from unidecode import unidecode
+import keyboard
 from abc import abstractmethod, ABCMeta
 
 import pandas as pd
@@ -20,7 +21,6 @@ from openpyxl import load_workbook
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as ec
 
 def resource_path(relative_path):
         base_path = getattr(
@@ -132,11 +132,11 @@ class Browser:
         return browser
 
 class Tribunal:
-    TIME_TO_WAIT = 2
+    TIME_TO_WAIT = 1
     __metaclass__ = ABCMeta
 
     def __init__(self, options = ()) -> None:
-        self.browser = Browser().make_chrome_browser(options)
+        self.browser = Browser().make_chrome_browser(*options)
         pass
 
     @abstractmethod
@@ -144,14 +144,47 @@ class Tribunal:
         raise NotImplementedError("Implemente este método")
     
 class EPROC(Tribunal):
-    LINK = 'https://eproc1g.trf6.jus.br/eproc/externo_controlador.php?acao=processo_consulta_publica'
+    LINK_BASE = 'https://eproc1g.trf6.jus.br/eproc/externo_controlador.php?acao=processo_consulta_publica'
+    INPUT = 'txtNumProcesso'
+    CAPTCHA = 'txtInfraCaptcha'
+    CONTULTAR = 'sbmNovo'
+    TABLE_CONTENT = '#divInfraAreaProcesso > table > tbody'
+    WAIT_CAPTCHA = 2
 
     def __init__(self) -> None:
         super().__init__()
         pass
-    
+
     def exec(self, num_processo):
-        ...
+        self.browser.get(self.LINK_BASE)
+        self.browser.find_element(By.ID, self.INPUT).send_keys(num_processo)
+        self.tentar_consulta()
+        return [
+            conteudo.text[3:] for conteudo \
+                in self.__valor_janela() if conteudo.text != ''
+        ]
+       
+    def __valor_janela(self):
+        tbody = self.browser.find_element(By.CSS_SELECTOR, self.TABLE_CONTENT)
+        rows = tbody.find_elements(By.TAG_NAME, 'tr')
+        rows.pop(0)
+        return rows
+
+    def tentar_consulta(self):
+        self.browser.find_element(By.ID, self.CONTULTAR).click()
+        keyboard.press_and_release('enter')
+        sleep(self.TIME_TO_WAIT)
+        try:
+            #se o captcha aparece, esperar para preenchê-lo
+            if self.browser.find_element(By.ID, self.CAPTCHA).is_displayed():
+                return self.preencher_captcha()
+        except:
+            return None
+
+    def preencher_captcha(self):
+        while len(self.browser.find_element(By.ID, self.CAPTCHA).get_attribute('value')) != 4:
+            sleep(self.WAIT_CAPTCHA)
+        self.tentar_consulta()
 
 class PJE(Tribunal):
     CLASS_ELEMENTS = 'col-sm-12'
@@ -197,7 +230,7 @@ class Juiz:
     def __init__(self) -> None:
         self.ref = {
             'pje': PJE(),
-            #'eproc': EPROC()
+            'eproc': EPROC()
         }
         pass
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'window.ui'
+## Form generated from reading UI file 'window_process.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.0
 ##
@@ -90,7 +90,7 @@ class Ui_MainWindow(object):
 
         self.pushButton_2 = QPushButton(self.centralwidget)
         self.pushButton_2.setObjectName(u"pushButton_2")
-        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.MinimumExpanding)
+        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
         sizePolicy2.setHorizontalStretch(0)
         sizePolicy2.setVerticalStretch(0)
         sizePolicy2.setHeightForWidth(self.pushButton_2.sizePolicy().hasHeightForWidth())
@@ -103,7 +103,7 @@ class Ui_MainWindow(object):
         icon = QIcon()
         icon.addFile(u"../imgs/upload-icon.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.pushButton_2.setIcon(icon)
-        self.pushButton_2.setIconSize(QSize(75, 75))
+        self.pushButton_2.setIconSize(QSize(65, 63))
 
         self.gridLayout.addWidget(self.pushButton_2, 4, 1, 1, 3)
 
@@ -122,21 +122,19 @@ class Ui_MainWindow(object):
 
         self.label_2 = QLabel(self.centralwidget)
         self.label_2.setObjectName(u"label_2")
-        sizePolicy4 = QSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Minimum)
-        sizePolicy4.setHorizontalStretch(0)
-        sizePolicy4.setVerticalStretch(0)
-        sizePolicy4.setHeightForWidth(self.label_2.sizePolicy().hasHeightForWidth())
-        self.label_2.setSizePolicy(sizePolicy4)
+        sizePolicy1.setHeightForWidth(self.label_2.sizePolicy().hasHeightForWidth())
+        self.label_2.setSizePolicy(sizePolicy1)
         font2 = QFont()
         font2.setFamilies([u"Arial Rounded MT"])
         font2.setPointSize(12)
         font2.setBold(True)
         font2.setItalic(False)
         self.label_2.setFont(font2)
-        self.label_2.setScaledContents(False)
+        self.label_2.setContextMenuPolicy(Qt.ContextMenuPolicy.DefaultContextMenu)
+        self.label_2.setScaledContents(True)
         self.label_2.setWordWrap(False)
 
-        self.gridLayout.addWidget(self.label_2, 2, 1, 1, 2)
+        self.gridLayout.addWidget(self.label_2, 2, 1, 1, 3)
 
 
         self.gridLayout_2.addLayout(self.gridLayout, 3, 0, 1, 1)
@@ -161,7 +159,7 @@ class Ui_MainWindow(object):
         self.pushButton.setAccessibleDescription("")
 #endif // QT_CONFIG(accessibility)
         self.pushButton.setText(QCoreApplication.translate("MainWindow", u"Executar", None))
-        self.label.setText(QCoreApplication.translate("MainWindow", u"Acompanha processos", None))
+        self.label.setText(QCoreApplication.translate("MainWindow", u"Consulta Processual", None))
         self.pushButton_2.setText("")
         self.logo.setText("")
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Insira aqui seu relat\u00f3rio de processos", None))
