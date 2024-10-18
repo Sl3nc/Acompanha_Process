@@ -33,8 +33,8 @@ class Arquivo:
     def __init__(self) -> None:
         self.tipos_validos = 'lsx'
         self.caminho = ''
-        self.COL_INDEX = 3
-        self.COL_NUM = 2
+        self.COL_INDEX = 2
+        self.COL_NUM = 1
         pass
 
     def inserir(self, button: QPushButton):
@@ -74,21 +74,17 @@ class Arquivo:
     def envio_invalido(self) -> bool:
         return True if len(self.caminho) == 0 else False
 
-    def ler(self) -> dict:
-        ref = {}
-        arq_DF = pd.read_excel(self.caminho, usecols='A:B', header=None)
-        arq_dict = arq_DF.to_dict('index')
-        for arq in arq_dict.values():
-            ref[arq[1]] = arq[0]
-        return ref
+    def ler(self) -> list:
+        return pd.read_excel(self.caminho, usecols='A', header=None)[0]\
+            .values.tolist()
 
     def alterar(self, conteudo: dict) -> None:
         wb = load_workbook(self.caminho)
         ws = wb.active
-        for index, conteudo in enumerate(conteudo.values(), 1):
+        for index, lista_movimentos in enumerate(conteudo.values(), 1):
             valor_novo = ''
-            for movimento in conteudo:
-                if movimento[:10] not in ws.cell(index, self.COL_NUM).value:
+            for movimento in lista_movimentos:
+                if movimento not in ws.cell(index, self.COL_NUM).value:
                     valor_novo = f'{valor_novo} §#§ {movimento}'
 
             if ws.cell(index, self.COL_INDEX).value == None:
@@ -157,7 +153,8 @@ class EPROC(Tribunal):
 
     def exec(self, num_processo):
         self.browser.get(self.LINK_BASE)
-        self.browser.find_element(By.ID, self.INPUT).send_keys(num_processo)
+        self.browser.find_element(By.ID, self.INPUT)\
+            .send_keys(num_processo.replace('-','').replace('.',''))
         self.tentar_consulta()
         return [
             conteudo.text[3:] for conteudo \
@@ -202,7 +199,8 @@ class PJE(Tribunal):
     def exec(self, num_processo) -> str:
         self.browser.get(self.LINK_BASE)
 
-        self.browser.find_element(By.NAME, self.INPUT).send_keys(num_processo)
+        self.browser.find_element(By.NAME, self.INPUT)\
+            .send_keys(num_processo)
 
 
         self.browser.find_element(By.NAME, self.BTN_PESQUISAR).click()
@@ -229,22 +227,26 @@ class PJE(Tribunal):
 class Juiz:
     def __init__(self) -> None:
         self.ref = {
-            'pje': PJE(),
-            'eproc': EPROC()
+            '13': PJE(),
+            '01': EPROC()
         }
         pass
 
-    def pesquisar(self, processos: dict) -> dict:
+    def pesquisar(self, num_processos: list) -> dict:
         ref = {}
-        for num, nome in processos.items():
-            ref[num] = self.__apurar(nome).exec(num)
+        for num in num_processos:
+            tribunal = self.__apurar(str(num))
+            if tribunal == None:
+                ref[num] = None
+            else:
+                ref[num] = tribunal.exec(str(num))
         return ref
 
-    def __apurar(self, nome:str) -> Tribunal:
+    def __apurar(self, num:str) -> Tribunal:
         for key, value in self.ref.items():
-            if nome == key:
+            if key == num.replace('-','').replace('.','')[14:16]:
                 return value 
-        raise Exception(f'Tribunal "{nome}" não identificado')
+        return None
     
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent = None):
@@ -271,13 +273,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 raise Exception('Favor anexar seu relatório de processos')
 
             juiz = Juiz()        
-            processos = self.file.ler()
-            result = juiz.pesquisar(processos)
+            num_processos = self.file.ler()
+            result = juiz.pesquisar(num_processos)
+            invalidos = self.filtra_invalido(result)
+
+            if len(invalidos) != 0:
+                for key in invalidos:
+                    result.pop(key)
+                    
+                messagebox.showerror('Aviso', \
+                    f'Os tribunais dos seguintes processos ainda não foram implementados no programa: \n\n \
+                        {'\n - '.join(str(x) for x in invalidos)}')
+
             self.file.alterar(result)
             self.file.abrir()
         except Exception as err:
             traceback.print_exc()
             messagebox.showerror('Aviso', err)
+
+    def filtra_invalido(self, result: dict):
+        falhas = []
+        for key, value in result.items():
+            if value == None:
+                falhas.append(key)
+        return falhas
 
     def loading(self):
         ...
