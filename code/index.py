@@ -33,7 +33,7 @@ class Arquivo:
     def __init__(self) -> None:
         self.tipos_validos = 'lsx'
         self.caminho = ''
-        self.COL_INDEX = 2
+        self.COL_TEXT = 2
         self.COL_NUM = 1
         pass
 
@@ -87,10 +87,10 @@ class Arquivo:
                 if movimento not in ws.cell(index, self.COL_NUM).value:
                     valor_novo = f'{valor_novo} §#§ {movimento}'
 
-            if ws.cell(index, self.COL_INDEX).value == None:
-                ws.cell(index, self.COL_INDEX, '')
-            ws.cell(index, self.COL_INDEX).value = \
-                ws.cell(index, self.COL_INDEX).value + valor_novo
+            if ws.cell(index, self.COL_TEXT).value == None:
+                ws.cell(index, self.COL_TEXT, '')
+            ws.cell(index, self.COL_TEXT).value = \
+                ws.cell(index, self.COL_TEXT).value + valor_novo
 
         wb.save(self.caminho)
 
@@ -146,6 +146,8 @@ class EPROC(Tribunal):
     CONTULTAR = 'sbmNovo'
     TABLE_CONTENT = '#divInfraAreaProcesso > table > tbody'
     WAIT_CAPTCHA = 2
+    FRAME_PRINT = [300, 430, 430, 480]
+    NOME_PRINT = 'image.png'
 
     def __init__(self) -> None:
         super().__init__()
@@ -254,7 +256,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.file = Arquivo()
 
-        self.logo.setPixmap(QPixmap(resource_path("src\\imgs\\procc-icon.ico")))
+        self.logo.setPixmap(QPixmap(resource_path("src\\imgs\\procss-icon.ico")))
         icon = QIcon()
         icon.addFile(resource_path("src\\imgs\\upload-icon.png"), QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.pushButton_2.setIcon(icon)
