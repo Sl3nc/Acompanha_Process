@@ -76,7 +76,7 @@
       <item row="4" column="1" colspan="3">
        <widget class="QStackedWidget" name="stackedWidget">
         <property name="currentIndex">
-         <number>2</number>
+         <number>0</number>
         </property>
         <widget class="QWidget" name="page_3">
          <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -182,7 +182,7 @@
         <widget class="QWidget" name="page_5">
          <layout class="QGridLayout" name="gridLayout_3">
           <item row="2" column="2">
-           <widget class="QPushButton" name="pushButton_3">
+           <widget class="QPushButton" name="enviar_captcha">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
               <horstretch>0</horstretch>
@@ -193,7 +193,7 @@
              <enum>Qt::LayoutDirection::LeftToRight</enum>
             </property>
             <property name="text">
-             <string>PushButton</string>
+             <string>Enviar</string>
             </property>
            </widget>
           </item>
