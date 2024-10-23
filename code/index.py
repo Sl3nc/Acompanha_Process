@@ -13,8 +13,8 @@ import sys
 from PySide6.QtWidgets import (
     QMainWindow, QApplication, QWidget, QLabel, QVBoxLayout,QPushButton, QLineEdit
 )
-from PySide6.QtGui import QPixmap
-from PySide6.QtCore import QThread, QObject, Signal
+from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtCore import QThread, QObject, Signal, QSize
 from src.window_process import Ui_MainWindow
 
 def resource_path(self,relative_path):
@@ -187,7 +187,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent = None):
         super().__init__(parent)
         self.setupUi(self)
-        self.label_3.setPixmap(QPixmap(resource_path('src\\imgs\\load.gif')))
+        self.logo.setPixmap(QPixmap(resource_path('src\\imgs\\procc-icon.ico')))
+        icon = QIcon()
+        icon.addFile(resource_path("src\\imgs\\upload-icon.png"), QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        self.pushButton_2.setIcon(icon)
+
         self.pushButton.clicked.connect(self.hard_work)
         self.enviar_captcha.clicked.connect(self.enviar_resp)
 
