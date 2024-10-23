@@ -56,6 +56,7 @@ class EPROC(Browser):
     TIME_TO_WAIT = 1
     WAIT_CAPTCHA = 2
     FRAME_PRINT = [300, 430, 430, 480]
+    NOME_IMG = 'image.png'
 
     def __init__(self) -> None:
         super().__init__(hide=False)
@@ -82,8 +83,7 @@ class EPROC(Browser):
         return self.NOME_IMG
 
     def preencher_captcha(self, valor):
-        self.browser.find_element(By.ID, 'txtInfraCaptcha')\
-            .text(valor)
+        self.browser.find_element(By.ID, 'txtInfraCaptcha').send_keys(valor)
 
     def conteudo(self):
         tbody = self.browser.find_element(By.CSS_SELECTOR, self.TABLE_CONTENT)
@@ -135,26 +135,30 @@ class Worker(QObject):
     inicio = Signal(str)
     valor = Signal(str)
     fim = Signal(str)
+    WAIT_CAPTCHA = 2
 
-    def __init__(self, num_process) -> None:
+    def __init__(self, num_process: list[str]) -> None:
         super().__init__()
         self.num_process = num_process
+        self.valor_janela = ''
         self.ref = {
-            'eproc': self.acao_eproc
+            '08': self.eproc
         }
 
     def executar(self):
         for num in self.num_process:
-            result_apuragem = self.__apurar()
-            for key, method in self.ref.items():
-                if key == result_apuragem:
-                    method(num)
-                    # PJE().exec('5147698-10.2023.8.13.0024')
+            method = self.__apurar(num)
+            method(num)
+            #browser como parâmetro ^
+            # PJE().exec('5147698-10.2023.8.13.0024')
     
-    def __apurar(self):
-        return 'pje'
+    def __apurar(self, num: str):
+        return self.eproc
+        for key, method in self.ref.items():
+            if key == num:
+                return method
 
-    def acao_eproc(self, num):
+    def eproc(self, num):
         tribunal = EPROC()
         tribunal.inserir_valor(num)
         while tribunal.tentar_consulta() == False:
@@ -181,7 +185,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.enviar_captcha.clicked.connect(self.enviar_resp)
 
     def hard_work(self):
-        self.worker = Worker(['5147698-10.2023.8.13.0024'])
+        self.worker = Worker(['1080458-33.2021.4.01.3800'])
         self._thread = QThread()
 
         self.worker.moveToThread(self._thread)
@@ -194,7 +198,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._thread.start()  
 
     def progress(self, nome_img):
-        self.label.setPixmap(QPixmap(nome_img))
+        self.label_5.setPixmap(QPixmap(nome_img))
         self.stackedWidget.setCurrentIndex(2)
 
     def enviar_resp(self):

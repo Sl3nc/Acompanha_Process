@@ -149,6 +149,7 @@ class Ui_MainWindow(object):
 
         self.label_5 = QLabel(self.page_5)
         self.label_5.setObjectName(u"label_5")
+        self.label_5.setScaledContents(True)
 
         self.gridLayout_3.addWidget(self.label_5, 0, 1, 1, 2)
 
@@ -230,7 +231,7 @@ class Ui_MainWindow(object):
         self.label_4.setText(QCoreApplication.translate("MainWindow", u"Carregando...", None))
         self.enviar_captcha.setText(QCoreApplication.translate("MainWindow", u"Enviar", None))
         self.label_6.setText(QCoreApplication.translate("MainWindow", u"Favor preencher o exame CAPTCHA acima", None))
-        self.label_5.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.label_5.setText("")
 #if QT_CONFIG(accessibility)
         self.pushButton.setAccessibleDescription("")
 #endif // QT_CONFIG(accessibility)
