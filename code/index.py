@@ -155,7 +155,7 @@ class Worker(QObject):
     def executar(self):
         for num in self.num_process:
             method = self.__apurar(num)
-            print(*method(num))
+            method(num)
             #browser como parâmetro ^
             # PJE().exec('5147698-10.2023.8.13.0024')
         self.fim.emit(True)
