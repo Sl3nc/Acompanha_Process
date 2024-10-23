@@ -17,8 +17,8 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QFrame, QGridLayout, QLabel,
     QLineEdit, QMainWindow, QPushButton, QSizePolicy,
-    QStackedWidget, QStatusBar, QTabWidget, QVBoxLayout,
-    QWidget)
+    QSpacerItem, QStackedWidget, QStatusBar, QTabWidget,
+    QVBoxLayout, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -104,17 +104,8 @@ class Ui_MainWindow(object):
         self.stackedWidget.addWidget(self.page_3)
         self.page_4 = QWidget()
         self.page_4.setObjectName(u"page_4")
-        self.verticalLayout = QVBoxLayout(self.page_4)
-        self.verticalLayout.setObjectName(u"verticalLayout")
-        self.label_3 = QLabel(self.page_4)
-        self.label_3.setObjectName(u"label_3")
-        sizePolicy.setHeightForWidth(self.label_3.sizePolicy().hasHeightForWidth())
-        self.label_3.setSizePolicy(sizePolicy)
-        self.label_3.setPixmap(QPixmap(u"../imgs/load.gif"))
-        self.label_3.setScaledContents(True)
-
-        self.verticalLayout.addWidget(self.label_3)
-
+        self.gridLayout_4 = QGridLayout(self.page_4)
+        self.gridLayout_4.setObjectName(u"gridLayout_4")
         self.label_4 = QLabel(self.page_4)
         self.label_4.setObjectName(u"label_4")
         font2 = QFont()
@@ -123,7 +114,33 @@ class Ui_MainWindow(object):
         font2.setBold(True)
         self.label_4.setFont(font2)
 
-        self.verticalLayout.addWidget(self.label_4)
+        self.gridLayout_4.addWidget(self.label_4, 1, 1, 1, 1)
+
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.gridLayout_4.addItem(self.horizontalSpacer, 0, 0, 1, 1)
+
+        self.gif_load = QLabel(self.page_4)
+        self.gif_load.setObjectName(u"gif_load")
+        sizePolicy.setHeightForWidth(self.gif_load.sizePolicy().hasHeightForWidth())
+        self.gif_load.setSizePolicy(sizePolicy)
+        self.gif_load.setMaximumSize(QSize(200, 200))
+        self.gif_load.setPixmap(QPixmap(u"../imgs/load.gif"))
+        self.gif_load.setScaledContents(True)
+
+        self.gridLayout_4.addWidget(self.gif_load, 0, 1, 1, 1)
+
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.gridLayout_4.addItem(self.horizontalSpacer_2, 0, 2, 1, 1)
+
+        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.gridLayout_4.addItem(self.horizontalSpacer_3, 1, 0, 1, 1)
+
+        self.horizontalSpacer_4 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.gridLayout_4.addItem(self.horizontalSpacer_4, 1, 2, 1, 1)
 
         self.stackedWidget.addWidget(self.page_4)
         self.page_5 = QWidget()
@@ -149,6 +166,8 @@ class Ui_MainWindow(object):
 
         self.label_5 = QLabel(self.page_5)
         self.label_5.setObjectName(u"label_5")
+        sizePolicy.setHeightForWidth(self.label_5.sizePolicy().hasHeightForWidth())
+        self.label_5.setSizePolicy(sizePolicy)
         self.label_5.setScaledContents(True)
 
         self.gridLayout_3.addWidget(self.label_5, 0, 1, 1, 2)
@@ -227,8 +246,8 @@ class Ui_MainWindow(object):
         self.logo.setText("")
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Insira aqui seu relat\u00f3rio de processos", None))
         self.pushButton_2.setText("")
-        self.label_3.setText("")
         self.label_4.setText(QCoreApplication.translate("MainWindow", u"Carregando...", None))
+        self.gif_load.setText("")
         self.enviar_captcha.setText(QCoreApplication.translate("MainWindow", u"Enviar", None))
         self.label_6.setText(QCoreApplication.translate("MainWindow", u"Favor preencher o exame CAPTCHA acima", None))
         self.label_5.setText("")

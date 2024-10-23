@@ -13,11 +13,11 @@ import sys
 from PySide6.QtWidgets import (
     QMainWindow, QApplication, QWidget, QLabel, QVBoxLayout,QPushButton, QLineEdit
 )
-from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtGui import QPixmap, QIcon, QMovie
 from PySide6.QtCore import QThread, QObject, Signal, QSize
 from src.window_process import Ui_MainWindow
 
-def resource_path(self,relative_path):
+def resource_path(relative_path: str):
     base_path = getattr(
         sys,
         '_MEIPASS',
@@ -188,15 +188,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super().__init__(parent)
         self.setupUi(self)
         self.logo.setPixmap(QPixmap(resource_path('src\\imgs\\procc-icon.ico')))
+
         icon = QIcon()
         icon.addFile(resource_path("src\\imgs\\upload-icon.png"), QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.pushButton_2.setIcon(icon)
+
+        self.movie = QMovie(resource_path("src\\imgs\\load.gif"))
+        self.gif_load.setMovie(self.movie)
 
         self.pushButton.clicked.connect(self.hard_work)
         self.enviar_captcha.clicked.connect(self.enviar_resp)
 
     def hard_work(self):
-        self.stackedWidget.setCurrentIndex(1)
+        self.exec_load(True)
+        self.pushButton.setDisabled(True)
         self.worker = Worker(['1080458-33.2021.4.01.3800'])
         self._thread = QThread()
 
@@ -210,16 +215,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #######################################
         self._thread.start()  
 
-    def reset(self):
-        self.stackedWidget.setCurrentIndex(0)
-
     def progress(self, nome_img):
         self.label_5.setPixmap(QPixmap(nome_img))
-        self.stackedWidget.setCurrentIndex(2)
+        self.exec_load(False, 2)
 
     def enviar_resp(self):
         self.worker.set_captcha(self.lineEdit.text())
-        self.stackedWidget.setCurrentIndex(1)
+        self.exec_load(True)
+
+    def reset(self):
+        self.exec_load(False, 0)
+        self.pushButton.setDisabled(False)
+
+    def exec_load(self, action: bool, to = 1):
+        if action == True:
+            self.movie.start()
+            self.stackedWidget.setCurrentIndex(to)
+        else:
+            self.movie.stop()
+            self.stackedWidget.setCurrentIndex(to)
 
 
 if __name__ == '__main__':
