@@ -17,6 +17,13 @@ from PySide6.QtGui import QPixmap
 from PySide6.QtCore import QThread, QObject, Signal
 from src.window_process import Ui_MainWindow
 
+def resource_path(self,relative_path):
+    base_path = getattr(
+        sys,
+        '_MEIPASS',
+        os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_path, relative_path)
+
 class Browser:
     ROOT_FOLDER = Path(__file__).parent
     CHROME_DRIVER_PATH = ROOT_FOLDER / 'src' / 'drivers' / 'chromedriver.exe'
@@ -180,6 +187,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent = None):
         super().__init__(parent)
         self.setupUi(self)
+        self.label_3.setPixmap(QPixmap(resource_path('src\\imgs\\load.gif')))
         self.pushButton.clicked.connect(self.hard_work)
         self.enviar_captcha.clicked.connect(self.enviar_resp)
 
