@@ -24,8 +24,8 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(478, 279)
-        MainWindow.setMinimumSize(QSize(478, 279))
+        MainWindow.resize(478, 323)
+        MainWindow.setMinimumSize(QSize(478, 323))
         MainWindow.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
         MainWindow.setDocumentMode(False)
         MainWindow.setTabShape(QTabWidget.TabShape.Rounded)
@@ -124,7 +124,8 @@ class Ui_MainWindow(object):
         self.gif_load.setObjectName(u"gif_load")
         sizePolicy.setHeightForWidth(self.gif_load.sizePolicy().hasHeightForWidth())
         self.gif_load.setSizePolicy(sizePolicy)
-        self.gif_load.setMaximumSize(QSize(200, 200))
+        self.gif_load.setMinimumSize(QSize(100, 100))
+        self.gif_load.setMaximumSize(QSize(100, 100))
         self.gif_load.setPixmap(QPixmap(u"../imgs/load.gif"))
         self.gif_load.setScaledContents(True)
 
