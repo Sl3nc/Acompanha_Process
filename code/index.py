@@ -1,13 +1,13 @@
 from pathlib import Path
 from time import sleep
-import keyboard
+import os
 from abc import abstractmethod
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.support import expected_conditions as ec
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from PIL import Image
 import sys
 from PySide6.QtWidgets import (
@@ -68,10 +68,11 @@ class EPROC(Browser):
 
     def tentar_consulta(self) -> bool:
         self.browser.find_element(By.ID, self.CONTULTAR).click()
-        keyboard.press_and_release('enter')
-        sleep(self.TIME_TO_WAIT)
         try:
-            #Se dar erro é porque não tem o captcha, senão o contrário 
+            #Se dar erro é porque não tem o captcha, senão o contrário
+            alert = WebDriverWait(self.browser, self.TIME_TO_WAIT)\
+                .until(EC.alert_is_present())
+            alert.accept() 
             self.browser.find_element(By.ID, self.CAPTCHA)
         except:
             return True
@@ -132,9 +133,8 @@ class PJE(Browser):
         return results
 
 class Worker(QObject):
-    inicio = Signal(str)
     valor = Signal(str)
-    fim = Signal(str)
+    fim = Signal(bool)
     WAIT_CAPTCHA = 2
 
     def __init__(self, num_process: list[str]) -> None:
@@ -148,9 +148,10 @@ class Worker(QObject):
     def executar(self):
         for num in self.num_process:
             method = self.__apurar(num)
-            method(num)
+            print(*method(num))
             #browser como parâmetro ^
             # PJE().exec('5147698-10.2023.8.13.0024')
+        self.fim.emit(True)
     
     def __apurar(self, num: str):
         return self.eproc
@@ -162,16 +163,14 @@ class Worker(QObject):
         tribunal = EPROC()
         tribunal.inserir_valor(num)
         while tribunal.tentar_consulta() == False:
+            self.valor_janela = ''
             img = tribunal.imagem_captcha()
             self.valor.emit(img)
-            while len(self.valor_janela) != 4:
-                print('esperando resp')
+            while self.valor_janela == '':
                 sleep(self.WAIT_CAPTCHA)
-            print('resposta recebida')
             tribunal.preencher_captcha(self.valor_janela)
-            print('preencheu captcha')
-            sleep(3)
             
+        os.remove(img)
         return tribunal.conteudo()
 
     def set_captcha(self, valor):
@@ -185,6 +184,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.enviar_captcha.clicked.connect(self.enviar_resp)
 
     def hard_work(self):
+        self.stackedWidget.setCurrentIndex(1)
         self.worker = Worker(['1080458-33.2021.4.01.3800'])
         self._thread = QThread()
 
@@ -193,9 +193,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.worker.fim.connect(self._thread.quit)
         self.worker.fim.connect(self._thread.deleteLater)
         self._thread.finished.connect(self.worker.deleteLater)
+        self._thread.finished.connect(self.reset)
         self.worker.valor.connect(self.progress) 
         #######################################
         self._thread.start()  
+
+    def reset(self):
+        self.stackedWidget.setCurrentIndex(0)
 
     def progress(self, nome_img):
         self.label_5.setPixmap(QPixmap(nome_img))
@@ -203,6 +207,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def enviar_resp(self):
         self.worker.set_captcha(self.lineEdit.text())
+        self.stackedWidget.setCurrentIndex(1)
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
