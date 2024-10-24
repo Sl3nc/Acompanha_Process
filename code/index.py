@@ -1,21 +1,32 @@
 from pathlib import Path
 from time import sleep
+from PIL import Image
+
 import os
-from abc import abstractmethod
+import sys
+import string
+import traceback
+from unidecode import unidecode
+from abc import abstractmethod, ABCMeta
+
+import pandas as pd
+from openpyxl import load_workbook
+
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from PIL import Image
-import sys
 from PySide6.QtWidgets import (
     QMainWindow, QApplication, QWidget, QLabel, QVBoxLayout,QPushButton, QLineEdit
 )
 from PySide6.QtGui import QPixmap, QIcon, QMovie
 from PySide6.QtCore import QThread, QObject, Signal, QSize
 from src.window_process import Ui_MainWindow
+
+from tkinter import messagebox
+from tkinter.filedialog import askopenfilename
 
 def resource_path(relative_path: str):
     base_path = getattr(
@@ -24,18 +35,80 @@ def resource_path(relative_path: str):
         os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
 
+class Arquivo:
+    def __init__(self) -> None:
+        self.tipos_validos = 'lsx'
+        self.caminho = ''
+        self.COL_TEXT = 2
+        self.COL_NUM = 1
+        pass
+
+    def inserir(self, button: QPushButton) -> None:
+        try:
+            self.caminho = askopenfilename()
+            if self.caminho == '':
+                return None
+            self.__validar_entrada()
+            button.setText(self.caminho[self.caminho.rfind('/') +1:])
+            button.setIcon(QPixmap(''))
+
+        except PermissionError:
+            messagebox.showerror(title='Aviso', message= 'O arquivo selecionado apresenta-se em aberto em outra janela, favor fecha-la')
+        except FileExistsError:
+            messagebox.showerror(title='Aviso', message= 'O arquivo selecionado já apresenta uma versão sem acento, favor usar tal versão ou apagar uma delas')
+        except Exception as error:
+            messagebox.showerror(title='Aviso', message= error)
+
+    def __validar_entrada(self) -> str:
+        self.__tipo()
+
+        if any(c not in string.ascii_letters for c in self.caminho):
+            self.caminho = self.__formato_ascii()
+
+    def __tipo(self) -> bool:
+        if self.caminho[len(self.caminho) -3 :] != self.tipos_validos:
+            ultima_barra = self.caminho.rfind('/')
+            raise Exception(
+                f'Formato inválido do arquivo: {self.caminho[ultima_barra+1:]}')
+        return True
+
+    def __formato_ascii(self) -> str:
+        caminho_uni = unidecode(self.caminho)
+        os.renames(self.caminho, caminho_uni)
+        return caminho_uni
+    
+    def envio_invalido(self) -> bool:
+        return True if len(self.caminho) == 0 else False
+
+    def ler(self) -> list:
+        return pd.read_excel(self.caminho, usecols='A', header=None)[0]\
+            .values.tolist()
+
+    def alterar(self, conteudo: dict) -> None:
+        wb = load_workbook(self.caminho)
+        ws = wb.active
+        for index, lista_movimentos in enumerate(conteudo.values(), 1):
+            valor_novo = ''
+            for movimento in lista_movimentos:
+                if movimento not in ws.cell(index, self.COL_NUM).value:
+                    valor_novo = f'{valor_novo} §#§ {movimento}'
+
+            if ws.cell(index, self.COL_TEXT).value == None:
+                ws.cell(index, self.COL_TEXT, '')
+            ws.cell(index, self.COL_TEXT).value = \
+                ws.cell(index, self.COL_TEXT).value + valor_novo
+
+        wb.save(self.caminho)
+
+    def abrir(self) -> None:
+        messagebox.showinfo(title='Aviso', message='Abrindo o arquivo gerado!')
+        os.startfile(self.caminho)
+
 class Browser:
     ROOT_FOLDER = Path(__file__).parent
     CHROME_DRIVER_PATH = ROOT_FOLDER / 'src' / 'drivers' / 'chromedriver.exe'
 
-    def __init__(self, options = (), hide = True) -> None:
-        self.browser = self.make_chrome_browser(*options)
-        if hide == True:
-            self.browser.set_window_position(-10000,0)
-            
-        pass
-
-    def make_chrome_browser(self,*options: str) -> webdriver.Chrome:
+    def make_chrome_browser(self,*options: str, hide = True) -> webdriver.Chrome:
         chrome_options = webdriver.ChromeOptions()
 
         # chrome_options.add_argument('--headless')
@@ -52,29 +125,73 @@ class Browser:
             options=chrome_options
         )
 
+        if hide == True:
+            browser.set_window_position(-10000,0)
+
         return browser
 
-class EPROC(Browser):
-    LINK_BASE = 'https://eproc1g.trf6.jus.br/eproc/externo_controlador.php?acao=processo_consulta_publica'
-    INPUT = 'txtNumProcesso'
-    CAPTCHA = 'txtInfraCaptcha'
-    CONTULTAR = 'sbmNovo'
-    TABLE_CONTENT = '#divInfraAreaProcesso > table > tbody'
+class Tribunal:
     TIME_TO_WAIT = 1
     WAIT_CAPTCHA = 2
+    CAPTCHA = ''
+    __metaclass__ = ABCMeta
+
+    def __init__(self, browser) -> None:
+        self.valor_captcha = ''
+        self.browser = browser
+        pass
+
+    @abstractmethod
+    def executar(self) -> list[str]:
+        raise NotImplementedError("Implemente este método")
+    
+    @abstractmethod
+    def acessar_processo(self, num: str) -> None:
+        raise NotImplementedError("Implemente este método")
+    
+    @abstractmethod
+    def conteudo(self):
+        raise NotImplementedError("Implemente este método")
+    
+    def esperar_captcha(self):
+        self.valor_captcha = ''
+        while self.valor_captcha == '':
+            sleep(self.WAIT_CAPTCHA)
+
+    def preencher_captcha(self):
+        self.browser.find_element(By.ID, self.CAPTCHA)\
+            .send_keys(self.valor_captcha)
+    
+    def set_captcha(self, valor):
+        self.valor_captcha = valor
+
+class EPROC(Tribunal):
+    LINK_BASE = 'https://eproc1g.trf6.jus.br/eproc/externo_controlador.php?acao=processo_consulta_publica'
+    INPUT = 'txtNumProcesso'
+    CONTULTAR = 'sbmNovo'
+    TABLE_CONTENT = '#divInfraAreaProcesso > table > tbody'
     FRAME_PRINT = [300, 430, 430, 480]
     NOME_IMG = 'image.png'
 
-    def __init__(self) -> None:
-        super().__init__(hide=False)
+    def __init__(self, browser) -> None:
+        super().__init__(browser)
+        self.CAPTCHA = 'txtInfraCaptcha'
         pass
 
-    def inserir_valor(self, num_process) -> None:
+    def executar(self):
+        if self.tentar_consulta() == False:
+            self.img = self.imagem_captcha()
+            return self.img
+        os.remove(self.img)
+        return self.conteudo()
+    
+    def acessar_processo(self, num: str) -> None:
         self.browser.get(self.LINK_BASE)
-        self.browser.find_element(By.ID, self.INPUT).send_keys(num_process)
+        self.browser.find_element(By.ID, self.INPUT).send_keys(num)
 
     def tentar_consulta(self) -> bool:
         self.browser.find_element(By.ID, self.CONTULTAR).click()
+        sleep(self.TIME_TO_WAIT)
         try:
             #Se dar erro é porque não tem o captcha, senão o contrário
             alert = WebDriverWait(self.browser, self.TIME_TO_WAIT)\
@@ -90,18 +207,14 @@ class EPROC(Browser):
         Image.open(self.NOME_IMG).crop([300, 430, 430, 480]).save(self.NOME_IMG)
         return self.NOME_IMG
 
-    def preencher_captcha(self, valor):
-        self.browser.find_element(By.ID, 'txtInfraCaptcha').send_keys(valor)
-
     def conteudo(self):
         tbody = self.browser.find_element(By.CSS_SELECTOR, self.TABLE_CONTENT)
         rows = tbody.find_elements(By.TAG_NAME, 'tr')
         rows.pop(0)
-        return rows
+        return [x.text for x in rows if x.text != '']
 
-class PJE(Browser):
+class PJE(Tribunal):
     CLASS_ELEMENTS = 'col-sm-12'
-    TIME_TO_WAIT = 300
     INPUT = 'fPP:numProcesso-inputNumeroProcessoDecoration:numProcesso-inputNumeroProcesso'
     BTN_PESQUISAR = 'fPP:searchProcessos'
     JANELA_PROCESSO = '#fPP\\:processosTable\\:632256959\\:j_id245 > a'
@@ -109,15 +222,15 @@ class PJE(Browser):
     LINK_BASE = 'https://pje-consulta-publica.tjmg.jus.br/'
     LINK_JANELA = 'https://pje-consulta-publica.tjmg.jus.br/pje/ConsultaPublica/DetalheProcessoConsultaPublica/listView.seam?ca'
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, browser) -> None:
+        super().__init__(browser)
         pass
 
-    def exec(self, num_processo):
+    def acessar_processo(self, num_process: str) -> None:
         self.browser.get(self.LINK_BASE)
+        self.browser.find_element(By.NAME, self.INPUT).send_keys(num_process)
 
-        self.browser.find_element(By.NAME, self.INPUT).send_keys(num_processo)
-
+    def executar(self) -> list[str]:
         self.browser.find_element(By.NAME, self.BTN_PESQUISAR).click()
 
         sleep(self.TIME_TO_WAIT)
@@ -126,106 +239,136 @@ class PJE(Browser):
 
         link_janela = metodo_janela[metodo_janela.rfind('='):]
 
-        return {num_processo: self.__valor_janela(link_janela)}
+        return self.conteudo(link_janela)
 
-    def __valor_janela(self, endereco: str):
+    def conteudo(self, endereco: str) -> list[str]:
         self.browser.get(self.LINK_JANELA + endereco[:len(endereco)-2])
-
-        sleep(self.TIME_TO_WAIT)
-
         tbody = self.browser.find_element(By.ID, self.TABELA_CONTEUDO)
-        results = tbody.find_elements(By.TAG_NAME, 'span')
-        for value in results:
-            print(value.text)
-        return results
+        return [x.text[3:] for x in tbody.find_elements(By.TAG_NAME, 'span')\
+                if x.text != '']
 
-class Worker(QObject):
+class Juiz(QObject):
     valor = Signal(str)
-    fim = Signal(bool)
+    fim = Signal(dict)
     WAIT_CAPTCHA = 2
 
     def __init__(self, num_process: list[str]) -> None:
         super().__init__()
         self.num_process = num_process
         self.valor_janela = ''
+        self.browser = Browser().make_chrome_browser(hide=True)
         self.ref = {
-            '08': self.eproc
+            '13': PJE(self.browser),
+            '01': EPROC(self.browser)
         }
 
-    def executar(self):
-        for num in self.num_process:
-            method = self.__apurar(num)
-            method(num)
-            #browser como parâmetro ^
-            # PJE().exec('5147698-10.2023.8.13.0024')
-        self.fim.emit(True)
+    def pesquisar(self) -> dict:
+        try:
+            ref = {}
+            for num in self.num_process:
+                resp = ''
+                self.tribunal_atual = self.__apurar(str(num))
+                if self.tribunal_atual == None:
+                    ref[num] = None
+                else:
+                    #TODO PESQUISA PROCESSO
+                    self.tribunal_atual.acessar_processo(str(num))
+                    resp = self.tribunal_atual.executar()
+                    while type(resp) == str:
+                        self.valor.emit(resp)
+                        self.tribunal_atual.esperar_captcha()
+                        print('Parou de esparar resposta')
+                        self.tribunal_atual.preencher_captcha()
+                        resp = self.tribunal_atual.executar()
+                    ref[num] = resp
+
+            self.fim.emit(ref)
+        except Exception as err:
+            traceback.print_exc()
+            messagebox.showerror('Aviso', err)
     
-    def __apurar(self, num: str):
-        return self.eproc
-        for key, method in self.ref.items():
-            if key == num:
-                return method
+    def __apurar(self, num:str) -> Tribunal:
+        for key, value in self.ref.items():
+            if key == num.replace('-','').replace('.','')[14:16]:
+                return value 
+        return None
 
-    def eproc(self, num):
-        tribunal = EPROC()
-        tribunal.inserir_valor(num)
-        while tribunal.tentar_consulta() == False:
-            self.valor_janela = ''
-            img = tribunal.imagem_captcha()
-            self.valor.emit(img)
-            while self.valor_janela == '':
-                sleep(self.WAIT_CAPTCHA)
-            tribunal.preencher_captcha(self.valor_janela)
-            
-        os.remove(img)
-        return tribunal.conteudo()
-
-    def set_captcha(self, valor):
-        self.valor_janela = valor
+    def set_captcha(self, valor) -> None:
+        self.tribunal_atual.set_captcha(valor)
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent = None):
         super().__init__(parent)
         self.setupUi(self)
-        self.logo.setPixmap(QPixmap(resource_path('src\\imgs\\procc-icon.ico')))
+        self.file = Arquivo()
 
+        self.logo.setPixmap(QPixmap(resource_path('src\\imgs\\procc-icon.ico')))
         icon = QIcon()
         icon.addFile(resource_path("src\\imgs\\upload-icon.png"), QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.pushButton_2.setIcon(icon)
-
         self.movie = QMovie(resource_path("src\\imgs\\load.gif"))
         self.gif_load.setMovie(self.movie)
 
+        self.pushButton_2.clicked.connect(
+            lambda: self.file.inserir(self.pushButton_2)
+        )
         self.pushButton.clicked.connect(self.hard_work)
         self.enviar_captcha.clicked.connect(self.enviar_resp)
 
     def hard_work(self):
-        self.exec_load(True)
-        self.pushButton.setDisabled(True)
-        self.worker = Worker(['1080458-33.2021.4.01.3800'])
-        self._thread = QThread()
+        try:
+            if self.file.envio_invalido():
+                raise Exception('Favor anexar seu relatório de processos')
+            
+            self.exec_load(True)
+            self.pushButton.setDisabled(True)
 
-        self.worker.moveToThread(self._thread)
-        self._thread.started.connect(self.worker.executar)
-        self.worker.fim.connect(self._thread.quit)
-        self.worker.fim.connect(self._thread.deleteLater)
-        self._thread.finished.connect(self.worker.deleteLater)
-        self._thread.finished.connect(self.reset)
-        self.worker.valor.connect(self.progress) 
-        #######################################
-        self._thread.start()  
+            self.juiz = Juiz(self.file.ler())
+            self._thread = QThread()
 
+            self.juiz.moveToThread(self._thread)
+            self._thread.started.connect(self.juiz.pesquisar)
+            self.juiz.fim.connect(self._thread.quit)
+            self.juiz.fim.connect(self._thread.deleteLater)
+            self.juiz.fim.connect(self.encerramento)
+            self._thread.finished.connect(self.juiz.deleteLater)
+            self.juiz.valor.connect(self.progress) 
+
+            self._thread.start()  
+        except Exception as err:
+            traceback.print_exc()
+            messagebox.showerror('Aviso', err)
+
+    def encerramento(self, result: dict):
+        invalidos = self.filtra_invalido(result)
+        if len(invalidos) != 0:
+            for key in invalidos:
+                result.pop(key)
+                
+            messagebox.showerror('Aviso', \
+                f'Os tribunais dos seguintes processos ainda não foram implementados no programa: \n\n \
+                    {'\n - '.join(str(x) for x in invalidos)}')
+
+        self.file.alterar(result)
+        self.file.abrir()
+
+        self.exec_load(False, 0)
+        self.pushButton.setDisabled(False)
+
+    def filtra_invalido(self, result: dict):
+        falhas = []
+        for key, value in result.items():
+            if value == None:
+                falhas.append(key)
+        return falhas
+    
     def progress(self, nome_img):
         self.label_5.setPixmap(QPixmap(nome_img))
         self.exec_load(False, 2)
 
     def enviar_resp(self):
-        self.worker.set_captcha(self.lineEdit.text())
+        self.juiz.set_captcha(self.lineEdit.text())
         self.exec_load(True)
-
-    def reset(self):
-        self.exec_load(False, 0)
-        self.pushButton.setDisabled(False)
 
     def exec_load(self, action: bool, to = 1):
         if action == True:
