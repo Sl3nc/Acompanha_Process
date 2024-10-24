@@ -43,13 +43,13 @@ class Arquivo:
         self.COL_NUM = 1
         pass
 
-    def inserir(self, button: QPushButton):
+    def inserir(self, button: QPushButton) -> None:
         try:
-            caminho = askopenfilename()
-            if caminho == '':
+            self.caminho = askopenfilename()
+            if self.caminho == '':
                 return None
-            self.caminho = self.__validar_entrada(caminho)
-            button.setText(caminho[caminho.rfind('/') +1:])
+            self.caminho = self.__validar_entrada()
+            button.setText(self.caminho[self.caminho.rfind('/') +1:])
             button.setIcon(QPixmap(''))
 
         except PermissionError:
@@ -59,22 +59,23 @@ class Arquivo:
         except Exception as error:
             messagebox.showerror(title='Aviso', message= error)
 
-    def __validar_entrada(self, caminho):
+    def __validar_entrada(self) -> str:
         if any(c not in string.ascii_letters for c in caminho):
             caminho = self.__formato_ascii(caminho)
 
         self.__tipo(caminho)
         return caminho
 
-    def __tipo(self, caminho):
-        if caminho[len(caminho) -3 :] != self.tipos_validos:
-            ultima_barra = caminho.rfind('/')
+    def __tipo(self) -> bool:
+        if self.caminho[len(self.caminho) -3 :] != self.tipos_validos:
+            ultima_barra = self.caminho.rfind('/')
             raise Exception(
-                f'Formato inválido do arquivo: {caminho[ultima_barra+1:]}')
+                f'Formato inválido do arquivo: {self.caminho[ultima_barra+1:]}')
+        return True
 
-    def __formato_ascii(self, caminho) -> str:
-        caminho_uni = unidecode(caminho)
-        os.renames(caminho, caminho_uni)
+    def __formato_ascii(self) -> str:
+        caminho_uni = unidecode(self.caminho)
+        os.renames(self.caminho, caminho_uni)
         return caminho_uni
     
     def envio_invalido(self) -> bool:
@@ -108,13 +109,7 @@ class Browser:
     ROOT_FOLDER = Path(__file__).parent
     CHROME_DRIVER_PATH = ROOT_FOLDER / 'src' / 'drivers' / 'chromedriver.exe'
 
-    def __init__(self, options = (), hide = True) -> webdriver.Chrome:
-        if hide == True:
-            self.browser.set_window_position(-10000,0)
-            
-        return self.make_chrome_browser(*options)
-
-    def make_chrome_browser(self,*options: str) -> webdriver.Chrome:
+    def make_chrome_browser(self,*options: str, hide = True) -> webdriver.Chrome:
         chrome_options = webdriver.ChromeOptions()
 
         # chrome_options.add_argument('--headless')
@@ -131,10 +126,15 @@ class Browser:
             options=chrome_options
         )
 
+        if hide == True:
+            browser.set_window_position(-10000,0)
+
         return browser
 
 class Tribunal:
     TIME_TO_WAIT = 1
+    WAIT_CAPTCHA = 2
+    CAPTCHA = ''
     __metaclass__ = ABCMeta
 
     def __init__(self, browser) -> None:
@@ -143,8 +143,25 @@ class Tribunal:
         pass
 
     @abstractmethod
-    def executar(self, num_processo):
+    def executar(self) -> list[str]:
         raise NotImplementedError("Implemente este método")
+    
+    @abstractmethod
+    def acessar_processo(self, num: str) -> None:
+        raise NotImplementedError("Implemente este método")
+    
+    @abstractmethod
+    def conteudo(self):
+        raise NotImplementedError("Implemente este método")
+    
+    def esperar_captcha(self):
+        self.valor_captcha = ''
+        while self.valor_captcha == '':
+            sleep(self.WAIT_CAPTCHA)
+
+    def preencher_captcha(self):
+        self.browser.find_element(By.ID, self.CAPTCHA)\
+            .send_keys(self.valor_captcha)
     
     def set_captcha(self, valor):
         self.valor_captcha = valor
@@ -152,34 +169,26 @@ class Tribunal:
 class EPROC(Tribunal):
     LINK_BASE = 'https://eproc1g.trf6.jus.br/eproc/externo_controlador.php?acao=processo_consulta_publica'
     INPUT = 'txtNumProcesso'
-    CAPTCHA = 'txtInfraCaptcha'
     CONTULTAR = 'sbmNovo'
     TABLE_CONTENT = '#divInfraAreaProcesso > table > tbody'
-    TIME_TO_WAIT = 1
-    WAIT_CAPTCHA = 2
     FRAME_PRINT = [300, 430, 430, 480]
     NOME_IMG = 'image.png'
 
     def __init__(self, browser) -> None:
         super().__init__(browser)
+        self.CAPTCHA = 'txtInfraCaptcha'
         pass
 
-    def executar(self, num_process: str):
-        self.inserir_valor(num_process)
-        while self.tentar_consulta() == False:
-            self.valor_captcha = ''
+    def executar(self):
+        if self.tentar_consulta() == False:
             img = self.imagem_captcha()
-            self.valor.emit(img)
-            while self.valor_captcha == '':
-                sleep(self.WAIT_CAPTCHA)
-            self.preencher_captcha(self.valor_captcha)
-            
+            return img
         os.remove(img)
         return self.conteudo()
     
-    def inserir_valor(self, num_process) -> None:
+    def acessar_processo(self, num: str) -> None:
         self.browser.get(self.LINK_BASE)
-        self.browser.find_element(By.ID, self.INPUT).send_keys(num_process)
+        self.browser.find_element(By.ID, self.INPUT).send_keys(num)
 
     def tentar_consulta(self) -> bool:
         self.browser.find_element(By.ID, self.CONTULTAR).click()
@@ -198,9 +207,6 @@ class EPROC(Tribunal):
         Image.open(self.NOME_IMG).crop([300, 430, 430, 480]).save(self.NOME_IMG)
         return self.NOME_IMG
 
-    def preencher_captcha(self, valor):
-        self.browser.find_element(By.ID, 'txtInfraCaptcha').send_keys(valor)
-
     def conteudo(self):
         tbody = self.browser.find_element(By.CSS_SELECTOR, self.TABLE_CONTENT)
         rows = tbody.find_elements(By.TAG_NAME, 'tr')
@@ -209,7 +215,6 @@ class EPROC(Tribunal):
 
 class PJE(Tribunal):
     CLASS_ELEMENTS = 'col-sm-12'
-    TIME_TO_WAIT = 300
     INPUT = 'fPP:numProcesso-inputNumeroProcessoDecoration:numProcesso-inputNumeroProcesso'
     BTN_PESQUISAR = 'fPP:searchProcessos'
     JANELA_PROCESSO = '#fPP\\:processosTable\\:632256959\\:j_id245 > a'
@@ -221,11 +226,11 @@ class PJE(Tribunal):
         super().__init__(browser)
         pass
 
-    def exec(self, num_processo):
+    def acessar_processo(self, num_process: str) -> None:
         self.browser.get(self.LINK_BASE)
+        self.browser.find_element(By.NAME, self.INPUT).send_keys(num_process)
 
-        self.browser.find_element(By.NAME, self.INPUT).send_keys(num_processo)
-
+    def executar(self) -> list[str]:
         self.browser.find_element(By.NAME, self.BTN_PESQUISAR).click()
 
         sleep(self.TIME_TO_WAIT)
@@ -234,18 +239,13 @@ class PJE(Tribunal):
 
         link_janela = metodo_janela[metodo_janela.rfind('='):]
 
-        return {num_processo: self.__valor_janela(link_janela)}
+        return self.conteudo(link_janela)
 
-    def __valor_janela(self, endereco: str):
+    def conteudo(self, endereco: str) -> list[str]:
         self.browser.get(self.LINK_JANELA + endereco[:len(endereco)-2])
-
-        sleep(self.TIME_TO_WAIT)
-
         tbody = self.browser.find_element(By.ID, self.TABELA_CONTEUDO)
-        results = tbody.find_elements(By.TAG_NAME, 'span')
-        for value in results:
-            print(value.text)
-        return results
+        return [x.text for x in tbody.find_elements(By.TAG_NAME, 'span')\
+                if x.text != '']
 
 class Juiz(QObject):
     valor = Signal(str)
@@ -256,22 +256,35 @@ class Juiz(QObject):
         super().__init__()
         self.num_process = num_process
         self.valor_janela = ''
-        self.browser = Browser()
+        self.browser = Browser().make_chrome_browser(hide=False)
         self.ref = {
             '13': PJE(self.browser),
             '01': EPROC(self.browser)
         }
 
     def pesquisar(self) -> dict:
-        ref = {}
-        for num in self.num_processos:
-            self.tribunal_atual = self.__apurar(str(num))
-            if self.tribunal_atual == None:
-                ref[num] = None
-            else:
-                ref[num] = self.tribunal_atual.exec(str(num))
+        try:
+            ref = {}
+            for num in self.num_process:
+                resp = ''
+                self.tribunal_atual = self.__apurar(str(num))
+                if self.tribunal_atual == None:
+                    ref[num] = None
+                else:
+                    #TODO PESQUISA PROCESSO
+                    self.tribunal_atual.acessar_processo(str(num))
+                    resp = self.tribunal_atual.executar()
+                    while type(resp) == str:
+                        self.valor.emit(resp)
+                        self.tribunal_atual.esperar_captcha()
+                        print('Parou de esparar resposta')
+                        self.tribunal_atual.preencher_captcha()
+                        resp = self.tribunal_atual.executar()
+                    ref[num] = resp
 
-        self.fim.emit(ref)
+            self.fim.emit(ref)
+        except Exception as err:
+            messagebox.showerror('Aviso', err)
     
     def __apurar(self, num:str) -> Tribunal:
         for key, value in self.ref.items():
@@ -279,7 +292,7 @@ class Juiz(QObject):
                 return value 
         return None
 
-    def set_captcha(self, valor):
+    def set_captcha(self, valor) -> None:
         self.tribunal_atual.set_captcha(valor)
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -313,7 +326,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._thread = QThread()
 
             self.juiz.moveToThread(self._thread)
-            self._thread.started.connect(self.juiz.executar)
+            self._thread.started.connect(self.juiz.pesquisar)
             self.juiz.fim.connect(self._thread.quit)
             self.juiz.fim.connect(self._thread.deleteLater)
             self.juiz.fim.connect(self.encerramento)

@@ -148,6 +148,7 @@ class EPROC(Tribunal):
     WAIT_CAPTCHA = 2
     FRAME_PRINT = [300, 430, 430, 480]
     NOME_PRINT = 'image.png'
+    #1080458-33.2021.4.01.3800
 
     def __init__(self) -> None:
         super().__init__()
@@ -193,6 +194,7 @@ class PJE(Tribunal):
     TABELA_CONTEUDO = 'j_id134:processoEvento:tb'
     LINK_BASE = 'https://pje-consulta-publica.tjmg.jus.br/'
     LINK_JANELA = 'https://pje-consulta-publica.tjmg.jus.br/pje/ConsultaPublica/DetalheProcessoConsultaPublica/listView.seam?ca'
+    #5147698-10.2023.8.13.0024
 
     def __init__(self) -> None:
         super().__init__(('--headless'))
