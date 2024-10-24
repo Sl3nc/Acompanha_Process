@@ -48,7 +48,7 @@ class Arquivo:
             self.caminho = askopenfilename()
             if self.caminho == '':
                 return None
-            self.caminho = self.__validar_entrada()
+            self.__validar_entrada()
             button.setText(self.caminho[self.caminho.rfind('/') +1:])
             button.setIcon(QPixmap(''))
 
@@ -60,11 +60,10 @@ class Arquivo:
             messagebox.showerror(title='Aviso', message= error)
 
     def __validar_entrada(self) -> str:
-        if any(c not in string.ascii_letters for c in caminho):
-            caminho = self.__formato_ascii(caminho)
+        self.__tipo()
 
-        self.__tipo(caminho)
-        return caminho
+        if any(c not in string.ascii_letters for c in self.caminho):
+            self.caminho = self.__formato_ascii()
 
     def __tipo(self) -> bool:
         if self.caminho[len(self.caminho) -3 :] != self.tipos_validos:
@@ -181,9 +180,9 @@ class EPROC(Tribunal):
 
     def executar(self):
         if self.tentar_consulta() == False:
-            img = self.imagem_captcha()
-            return img
-        os.remove(img)
+            self.img = self.imagem_captcha()
+            return self.img
+        os.remove(self.img)
         return self.conteudo()
     
     def acessar_processo(self, num: str) -> None:
@@ -192,6 +191,7 @@ class EPROC(Tribunal):
 
     def tentar_consulta(self) -> bool:
         self.browser.find_element(By.ID, self.CONTULTAR).click()
+        sleep(self.TIME_TO_WAIT)
         try:
             #Se dar erro é porque não tem o captcha, senão o contrário
             alert = WebDriverWait(self.browser, self.TIME_TO_WAIT)\
@@ -211,7 +211,7 @@ class EPROC(Tribunal):
         tbody = self.browser.find_element(By.CSS_SELECTOR, self.TABLE_CONTENT)
         rows = tbody.find_elements(By.TAG_NAME, 'tr')
         rows.pop(0)
-        return rows
+        return [x.text for x in rows if x.text != '']
 
 class PJE(Tribunal):
     CLASS_ELEMENTS = 'col-sm-12'
@@ -244,7 +244,7 @@ class PJE(Tribunal):
     def conteudo(self, endereco: str) -> list[str]:
         self.browser.get(self.LINK_JANELA + endereco[:len(endereco)-2])
         tbody = self.browser.find_element(By.ID, self.TABELA_CONTEUDO)
-        return [x.text for x in tbody.find_elements(By.TAG_NAME, 'span')\
+        return [x.text[3:] for x in tbody.find_elements(By.TAG_NAME, 'span')\
                 if x.text != '']
 
 class Juiz(QObject):
@@ -256,7 +256,7 @@ class Juiz(QObject):
         super().__init__()
         self.num_process = num_process
         self.valor_janela = ''
-        self.browser = Browser().make_chrome_browser(hide=False)
+        self.browser = Browser().make_chrome_browser(hide=True)
         self.ref = {
             '13': PJE(self.browser),
             '01': EPROC(self.browser)
@@ -284,6 +284,7 @@ class Juiz(QObject):
 
             self.fim.emit(ref)
         except Exception as err:
+            traceback.print_exc()
             messagebox.showerror('Aviso', err)
     
     def __apurar(self, num:str) -> Tribunal:
