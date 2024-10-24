@@ -281,7 +281,8 @@ class Juiz(QObject):
                         self.tribunal_atual.preencher_captcha()
                         resp = self.tribunal_atual.executar()
                     ref[num] = resp
-
+            
+            self.browser.quit()
             self.fim.emit(ref)
         except Exception as err:
             traceback.print_exc()
