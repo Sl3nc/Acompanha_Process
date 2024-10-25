@@ -89,7 +89,6 @@ class Arquivo:
         #TODO Alterar
         wb = load_workbook(self.caminho)
         ws = wb.active
-        print(conteudo)
         for index, lista_movimentos in enumerate(conteudo.values(), 1):
             if ws.cell(index, self.COL_TEXT).value == None:
                 ws.cell(index, self.COL_TEXT, '')
@@ -287,7 +286,6 @@ class Juiz(QObject):
                     ref[str(num)] = resp
             
             self.browser.quit()
-            print(ref)
             self.fim.emit(ref)
 
         except NoSuchElementException:
@@ -379,6 +377,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def enviar_resp(self):
         self.juiz.set_captcha(self.lineEdit.text())
+        self.lineEdit.setText('')
         self.exec_load(True)
 
     def exec_load(self, action: bool, to = 1):
