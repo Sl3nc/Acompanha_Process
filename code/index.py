@@ -8,11 +8,13 @@ import string
 import traceback
 from unidecode import unidecode
 from abc import abstractmethod, ABCMeta
+from collections import OrderedDict
 
 import pandas as pd
 from openpyxl import load_workbook
 
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
@@ -40,7 +42,6 @@ class Arquivo:
         self.tipos_validos = 'lsx'
         self.caminho = ''
         self.COL_TEXT = 2
-        self.COL_NUM = 1
         pass
 
     def inserir(self, button: QPushButton) -> None:
@@ -84,17 +85,20 @@ class Arquivo:
         return pd.read_excel(self.caminho, usecols='A', header=None)[0]\
             .values.tolist()
 
-    def alterar(self, conteudo: dict) -> None:
+    def alterar(self, conteudo: OrderedDict) -> None:
+        #TODO Alterar
         wb = load_workbook(self.caminho)
         ws = wb.active
+        print(conteudo)
         for index, lista_movimentos in enumerate(conteudo.values(), 1):
-            valor_novo = ''
-            for movimento in lista_movimentos:
-                if movimento not in ws.cell(index, self.COL_NUM).value:
-                    valor_novo = f'{valor_novo} §#§ {movimento}'
-
             if ws.cell(index, self.COL_TEXT).value == None:
                 ws.cell(index, self.COL_TEXT, '')
+
+            valor_novo = ''
+            for movimento in lista_movimentos:
+                if movimento not in ws.cell(index, self.COL_TEXT).value:
+                    valor_novo = f'{valor_novo} §#§ {movimento}'
+
             ws.cell(index, self.COL_TEXT).value = \
                 ws.cell(index, self.COL_TEXT).value + valor_novo
 
@@ -211,7 +215,7 @@ class EPROC(Tribunal):
         tbody = self.browser.find_element(By.CSS_SELECTOR, self.TABLE_CONTENT)
         rows = tbody.find_elements(By.TAG_NAME, 'tr')
         rows.pop(0)
-        return [x.text for x in rows if x.text != '']
+        return [x.text[3:] for x in rows if x.text != '']
 
 class PJE(Tribunal):
     CLASS_ELEMENTS = 'col-sm-12'
@@ -244,32 +248,33 @@ class PJE(Tribunal):
     def conteudo(self, endereco: str) -> list[str]:
         self.browser.get(self.LINK_JANELA + endereco[:len(endereco)-2])
         tbody = self.browser.find_element(By.ID, self.TABELA_CONTEUDO)
-        return [x.text[3:] for x in tbody.find_elements(By.TAG_NAME, 'span')\
-                if x.text != '']
+        return [x.text for x in tbody.find_elements(By.TAG_NAME, 'span')\
+                if x.text != '' and x.text[0].isnumeric()]
 
 class Juiz(QObject):
     valor = Signal(str)
-    fim = Signal(dict)
+    fim = Signal(OrderedDict)
     WAIT_CAPTCHA = 2
 
     def __init__(self, num_process: list[str]) -> None:
         super().__init__()
         self.num_process = num_process
         self.valor_janela = ''
-        self.browser = Browser().make_chrome_browser(hide=True)
+        self.browser = Browser().make_chrome_browser(hide=False)
         self.ref = {
             '13': PJE(self.browser),
             '01': EPROC(self.browser)
         }
 
-    def pesquisar(self) -> dict:
+    def pesquisar(self):
         try:
-            ref = {}
+            ref = OrderedDict(
+                [(str(x), '') for x in self.num_process]
+            )
             for num in self.num_process:
-                resp = ''
                 self.tribunal_atual = self.__apurar(str(num))
                 if self.tribunal_atual == None:
-                    ref[num] = None
+                    ref[str(num)] = ['']
                 else:
                     #TODO PESQUISA PROCESSO
                     self.tribunal_atual.acessar_processo(str(num))
@@ -277,18 +282,24 @@ class Juiz(QObject):
                     while type(resp) == str:
                         self.valor.emit(resp)
                         self.tribunal_atual.esperar_captcha()
-                        print('Parou de esparar resposta')
                         self.tribunal_atual.preencher_captcha()
                         resp = self.tribunal_atual.executar()
-                    ref[num] = resp
+                    ref[str(num)] = resp
             
             self.browser.quit()
+            print(ref)
             self.fim.emit(ref)
+
+        except NoSuchElementException:
+            messagebox.showerror('Aviso', f'O processo de número: "{num}" teve seu tribunal identificado, mas em seu respectivo site, este não foi encontrado')
+        #     self.fim.emit(ref)
         except Exception as err:
             traceback.print_exc()
             messagebox.showerror('Aviso', err)
     
     def __apurar(self, num:str) -> Tribunal:
+        if len(num) < 16:
+            return None 
         for key, value in self.ref.items():
             if key == num.replace('-','').replace('.','')[14:16]:
                 return value 
@@ -339,16 +350,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         except Exception as err:
             traceback.print_exc()
             messagebox.showerror('Aviso', err)
-
-    def encerramento(self, result: dict):
+                                    #dict{str:list[str]}
+    def encerramento(self, result: OrderedDict):
+        #TODO encerramento
         invalidos = self.filtra_invalido(result)
         if len(invalidos) != 0:
-            for key in invalidos:
-                result.pop(key)
-                
-            messagebox.showerror('Aviso', \
-                f'Os tribunais dos seguintes processos ainda não foram implementados no programa: \n\n \
-                    {'\n - '.join(str(x) for x in invalidos)}')
+            messagebox.showwarning('Aviso', \
+                f'Os tribunais dos seguintes processos ainda não foram implementados no programa: \n\
+                    {'\n'.join(f'- {str(x)}' for x in invalidos)}')
+
 
         self.file.alterar(result)
         self.file.abrir()
@@ -356,10 +366,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.exec_load(False, 0)
         self.pushButton.setDisabled(False)
 
-    def filtra_invalido(self, result: dict):
+    def filtra_invalido(self, result: OrderedDict):
         falhas = []
         for key, value in result.items():
-            if value == None:
+            if value == ['']:
                 falhas.append(key)
         return falhas
     
