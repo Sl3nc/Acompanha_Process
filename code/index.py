@@ -43,7 +43,7 @@ class Arquivo:
     def __init__(self) -> None:
         self.tipos_validos = 'lsx'
         self.caminho = ''
-        self.COL_TEXT = 10
+        self.COL_TEXT = 12
         pass
 
     def inserir(self, button: QPushButton) -> None:
@@ -86,8 +86,7 @@ class Arquivo:
 
     def ler(self) -> list:
         try:
-            return pd.read_excel(self.caminho, usecols='E')\
-                .values.tolist()
+            return pd.read_excel(self.caminho, usecols='E').dropna().values.tolist()
         except:
             Exception('Erro ao ler o arquivo, certifique-se de ter inserido o arquivo correto')
 
@@ -96,18 +95,19 @@ class Arquivo:
         wb = load_workbook(self.caminho)
         ws = wb[self.NOME_SHEET]
         for index, lista_movimentos in enumerate(conteudo.values(), 2):
+            print(f'{index} - {lista_movimentos}')
+            if lista_movimentos == ['']:
+                continue
+
             if ws.cell(index, self.COL_TEXT).value == None:
                 ws.cell(index, self.COL_TEXT, '')
 
-            valor_novo = ''
             for movimento in lista_movimentos:
-                if movimento not in ws.cell(index, self.COL_TEXT).value:
-                    valor_novo = f'{valor_novo} §#§ {movimento}'
+                if movimento[:11] not in ws.cell(index, self.COL_TEXT).value:
+                    ws.cell(index, self.COL_TEXT).value = \
+                        f'{ws.cell(index, self.COL_TEXT).value} **{movimento}'
 
-            ws.cell(index, self.COL_TEXT).value = \
-                ws.cell(index, self.COL_TEXT).value + valor_novo
-
-            wb.save(self.caminho)
+        wb.save(self.caminho)
           
     def abrir(self) -> None:
         messagebox.showinfo(title='Aviso', message='Abrindo o arquivo gerado!')
@@ -275,16 +275,16 @@ class Juiz(QObject):
     def pesquisar(self):
         # try:
             ref = OrderedDict(
-                [(str(x), '') for x in self.num_process]
+                [(str(x[0])[:25], '') for x in self.num_process]
             )
             for index, num in enumerate(self.num_process, 1):
-                if num != None:
-                    num = str(num[0])[:25]
-                else:
+                num = str(num[0])[:25]
+                if num == None:
                     num = ''
                 self.processo(ref, num)
                 self.progress.emit(index)
 
+            print(ref)
             self.browser.quit()
             self.fim.emit(ref)
 
@@ -330,6 +330,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         ]
 
         self.file = Arquivo()
+        self.setWindowTitle('Consulta Processual')
         self.setWindowIcon((QIcon(
             resource_path('src\\imgs\\procss-icon.ico'))))
         self.logo.setPixmap(QPixmap(
@@ -395,6 +396,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 falhas.append(key)
             elif value == ['~']:
                 invalido.append(key)
+                result[key] = ''
         return [falhas , invalido]
     
     def to_captcha(self, nome_img):
