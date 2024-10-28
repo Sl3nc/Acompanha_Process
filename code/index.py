@@ -38,6 +38,8 @@ def resource_path(relative_path: str):
     return os.path.join(base_path, relative_path)
 
 class Arquivo:
+    NOME_SHEET = 'Deltaprice Judiciais'
+
     def __init__(self) -> None:
         self.tipos_validos = 'lsx'
         self.caminho = ''
@@ -48,6 +50,8 @@ class Arquivo:
         try:
             self.caminho = askopenfilename()
             self.__validar_entrada()
+            with open(self.caminho, 'r+'):
+                ...
             button.setText(self.caminho[self.caminho.rfind('/') +1:])
             button.setIcon(QPixmap(''))
 
@@ -60,7 +64,7 @@ class Arquivo:
 
     def __validar_entrada(self) -> str:
         if self.caminho == '':
-                return None
+            return None
         self.__tipo()
         caminho_uni = unidecode(self.caminho)
         if self.caminho != caminho_uni:
@@ -83,14 +87,14 @@ class Arquivo:
     def ler(self) -> list:
         try:
             return pd.read_excel(self.caminho, usecols='E')\
-                .values.tolist()[0]
+                .values.tolist()
         except:
             Exception('Erro ao ler o arquivo, certifique-se de ter inserido o arquivo correto')
 
     def alterar(self, conteudo: OrderedDict) -> None:
         #TODO Alterar
         wb = load_workbook(self.caminho)
-        ws = wb.active
+        ws = wb[self.NOME_SHEET]
         for index, lista_movimentos in enumerate(conteudo.values(), 2):
             if ws.cell(index, self.COL_TEXT).value == None:
                 ws.cell(index, self.COL_TEXT, '')
@@ -103,15 +107,11 @@ class Arquivo:
             ws.cell(index, self.COL_TEXT).value = \
                 ws.cell(index, self.COL_TEXT).value + valor_novo
 
-        wb.save(self.caminho)
-
+            wb.save(self.caminho)
+          
     def abrir(self) -> None:
-        try:
-            messagebox.showinfo(title='Aviso', message='Abrindo o arquivo gerado!')
-            os.startfile(self.caminho)
-        except:
-            os.close(self.caminho)
-            os.startfile(self.caminho)
+        messagebox.showinfo(title='Aviso', message='Abrindo o arquivo gerado!')
+        os.startfile(self.caminho)
 
 class Browser:
     CHROME_DRIVER_PATH = resource_path('src\\drivers\\chromedriver.exe')
@@ -225,7 +225,7 @@ class PJE(Tribunal):
     CLASS_ELEMENTS = 'col-sm-12'
     INPUT = 'fPP:numProcesso-inputNumeroProcessoDecoration:numProcesso-inputNumeroProcesso'
     BTN_PESQUISAR = 'fPP:searchProcessos'
-    JANELA_PROCESSO = 'fPP:processosTable:1262260:j_id245'
+    TABELA_PROCESSO = 'fPP:processosTable:tb'
     TABELA_CONTEUDO = 'j_id134:processoEvento'
     LINK_BASE = 'https://pje-consulta-publica.tjmg.jus.br/'
     LINK_JANELA = 'https://pje-consulta-publica.tjmg.jus.br/pje/ConsultaPublica/DetalheProcessoConsultaPublica/listView.seam?ca'
@@ -239,16 +239,16 @@ class PJE(Tribunal):
         self.browser.find_element(By.NAME, self.INPUT).send_keys(num_process)
 
     def executar(self) -> list[str]:
-        self.browser.find_element(By.NAME, self.BTN_PESQUISAR).click()
-
-        sleep(self.TIME_TO_WAIT)
-
-        botao_janela = self.browser.find_element(By.ID, self.JANELA_PROCESSO)
-        metodo_janela = botao_janela.find_element(By.TAG_NAME, 'a').get_attribute('onclick')
-
-        link_janela = metodo_janela[metodo_janela.rfind('='):]
-
-        return self.conteudo(link_janela)
+        try:
+            self.browser.find_element(By.NAME, self.BTN_PESQUISAR).click()
+            sleep(self.TIME_TO_WAIT)
+            botao_janela = self.browser.find_element(By.ID, self.TABELA_PROCESSO)
+            metodo_janela = botao_janela.find_element(By.TAG_NAME, 'a')\
+                .get_attribute('onclick')
+            link_janela = metodo_janela[metodo_janela.rfind('='):]
+            return self.conteudo(link_janela)
+        except NoSuchElementException:
+            return ['~']
 
     def conteudo(self, endereco: str) -> list[str]:
         self.browser.get(self.LINK_JANELA + endereco[:len(endereco)-2])
@@ -278,7 +278,8 @@ class Juiz(QObject):
                 [(str(x), '') for x in self.num_process]
             )
             for index, num in enumerate(self.num_process, 1):
-                num = num[:25]
+                num = num[0][:25]
+                print(num)
                 self.tribunal_atual = self.__apurar(str(num))
                 if self.tribunal_atual == None:
                     ref[str(num)] = ['']
@@ -297,9 +298,6 @@ class Juiz(QObject):
             self.browser.quit()
             self.fim.emit(ref)
 
-        # except NoSuchElementException:
-        #     messagebox.showerror('Aviso', f'O processo de número: "{num}" teve seu tribunal identificado, mas em seu respectivo site, este não foi encontrado')
-        #     self.fim.emit(ref)
         # except Exception as err:
         #     traceback.print_exc()
         #     messagebox.showerror('Aviso', err)
@@ -321,6 +319,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent = None):
         super().__init__(parent)
         self.setupUi(self)
+        self.text_aviso = [
+            'Os tribunais dos seguintes processos ainda não foram implementados no programa:',
+            'Os números a seguir não foram encontrados em seus respectivos sites:'
+        ]
+
         self.file = Arquivo()
         self.setWindowIcon((QIcon(
             resource_path('src\\imgs\\procss-icon.ico'))))
@@ -367,25 +370,27 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                                     #dict{str:list[str]}
     def encerramento(self, result: OrderedDict):
         #TODO encerramento
-        invalidos = self.filtra_invalido(result)
-        if len(invalidos) != 0:
-            messagebox.showwarning('Aviso', \
-                f'Os tribunais dos seguintes processos ainda não foram implementados no programa: \n\
-                    {'\n'.join(f'- {x}' for x in invalidos)}')
-
-
+        invalidos = self.filtro(result)
+        for index, i in enumerate(invalidos):
+            if len(i) != 0:
+                messagebox.showwarning('Aviso', \
+                    f'{self.texto[index]} \n {'\n'.join(f'- {x}' for x in i)}')
+            
         self.file.alterar(result)
         self.file.abrir()
 
         self.exec_load(False, 0)
         self.pushButton.setDisabled(False)
 
-    def filtra_invalido(self, result: OrderedDict):
+    def filtro(self, result: OrderedDict):
         falhas = []
+        invalido = []
         for key, value in result.items():
             if value == ['']:
                 falhas.append(key)
-        return falhas
+            elif value == ['~']:
+                invalido.append(key)
+        return [falhas , invalido]
     
     def to_captcha(self, nome_img):
         self.label_5.setPixmap(QPixmap(nome_img))
