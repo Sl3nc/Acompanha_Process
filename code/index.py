@@ -41,7 +41,7 @@ class Arquivo:
     def __init__(self) -> None:
         self.tipos_validos = 'lsx'
         self.caminho = ''
-        self.COL_TEXT = 12
+        self.COL_TEXT = 10
         pass
 
     def inserir(self, button: QPushButton) -> None:
@@ -81,14 +81,17 @@ class Arquivo:
         return True if len(self.caminho) == 0 else False
 
     def ler(self) -> list:
-        return pd.read_excel(self.caminho, usecols='E')\
-            .values.tolist()[0]
+        try:
+            return pd.read_excel(self.caminho, usecols='E')\
+                .values.tolist()[0]
+        except:
+            Exception('Erro ao ler o arquivo, certifique-se de ter inserido o arquivo correto')
 
     def alterar(self, conteudo: OrderedDict) -> None:
         #TODO Alterar
         wb = load_workbook(self.caminho)
         ws = wb.active
-        for index, lista_movimentos in enumerate(conteudo.values(), 1):
+        for index, lista_movimentos in enumerate(conteudo.values(), 2):
             if ws.cell(index, self.COL_TEXT).value == None:
                 ws.cell(index, self.COL_TEXT, '')
 
@@ -222,7 +225,7 @@ class PJE(Tribunal):
     CLASS_ELEMENTS = 'col-sm-12'
     INPUT = 'fPP:numProcesso-inputNumeroProcessoDecoration:numProcesso-inputNumeroProcesso'
     BTN_PESQUISAR = 'fPP:searchProcessos'
-    JANELA_PROCESSO = '#fPP\\:processosTable\\:632256959\\:j_id245 > a'
+    JANELA_PROCESSO = 'fPP:processosTable:1262260:j_id245'
     TABELA_CONTEUDO = 'j_id134:processoEvento'
     LINK_BASE = 'https://pje-consulta-publica.tjmg.jus.br/'
     LINK_JANELA = 'https://pje-consulta-publica.tjmg.jus.br/pje/ConsultaPublica/DetalheProcessoConsultaPublica/listView.seam?ca'
@@ -240,7 +243,8 @@ class PJE(Tribunal):
 
         sleep(self.TIME_TO_WAIT)
 
-        metodo_janela = self.browser.find_element(By.CSS_SELECTOR, self.JANELA_PROCESSO).get_attribute('onclick')
+        botao_janela = self.browser.find_element(By.ID, self.JANELA_PROCESSO)
+        metodo_janela = botao_janela.find_element(By.TAG_NAME, 'a').get_attribute('onclick')
 
         link_janela = metodo_janela[metodo_janela.rfind('='):]
 
@@ -269,7 +273,7 @@ class Juiz(QObject):
         }
 
     def pesquisar(self):
-        try:
+        # try:
             ref = OrderedDict(
                 [(str(x), '') for x in self.num_process]
             )
@@ -293,12 +297,12 @@ class Juiz(QObject):
             self.browser.quit()
             self.fim.emit(ref)
 
-        except NoSuchElementException:
-            messagebox.showerror('Aviso', f'O processo de número: "{num}" teve seu tribunal identificado, mas em seu respectivo site, este não foi encontrado')
-            self.fim.emit(ref)
-        except Exception as err:
-            traceback.print_exc()
-            messagebox.showerror('Aviso', err)
+        # except NoSuchElementException:
+        #     messagebox.showerror('Aviso', f'O processo de número: "{num}" teve seu tribunal identificado, mas em seu respectivo site, este não foi encontrado')
+        #     self.fim.emit(ref)
+        # except Exception as err:
+        #     traceback.print_exc()
+        #     messagebox.showerror('Aviso', err)
     
     def __apurar(self, num:str) -> Tribunal:
         if len(num) < 16:
