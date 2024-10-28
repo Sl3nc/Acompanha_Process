@@ -41,7 +41,7 @@ class Arquivo:
     def __init__(self) -> None:
         self.tipos_validos = 'lsx'
         self.caminho = ''
-        self.COL_TEXT = 2
+        self.COL_TEXT = 12
         pass
 
     def inserir(self, button: QPushButton) -> None:
@@ -81,8 +81,8 @@ class Arquivo:
         return True if len(self.caminho) == 0 else False
 
     def ler(self) -> list:
-        return pd.read_excel(self.caminho, usecols='A', header=None)[0]\
-            .values.tolist()
+        return pd.read_excel(self.caminho, usecols='E')\
+            .values.tolist()[0]
 
     def alterar(self, conteudo: OrderedDict) -> None:
         #TODO Alterar
@@ -103,8 +103,12 @@ class Arquivo:
         wb.save(self.caminho)
 
     def abrir(self) -> None:
-        messagebox.showinfo(title='Aviso', message='Abrindo o arquivo gerado!')
-        os.startfile(self.caminho)
+        try:
+            messagebox.showinfo(title='Aviso', message='Abrindo o arquivo gerado!')
+            os.startfile(self.caminho)
+        except:
+            os.close(self.caminho)
+            os.startfile(self.caminho)
 
 class Browser:
     CHROME_DRIVER_PATH = resource_path('src\\drivers\\chromedriver.exe')
@@ -270,6 +274,7 @@ class Juiz(QObject):
                 [(str(x), '') for x in self.num_process]
             )
             for index, num in enumerate(self.num_process, 1):
+                num = num[:25]
                 self.tribunal_atual = self.__apurar(str(num))
                 if self.tribunal_atual == None:
                     ref[str(num)] = ['']
@@ -290,7 +295,7 @@ class Juiz(QObject):
 
         except NoSuchElementException:
             messagebox.showerror('Aviso', f'O processo de número: "{num}" teve seu tribunal identificado, mas em seu respectivo site, este não foi encontrado')
-        #     self.fim.emit(ref)
+            self.fim.emit(ref)
         except Exception as err:
             traceback.print_exc()
             messagebox.showerror('Aviso', err)
@@ -362,7 +367,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if len(invalidos) != 0:
             messagebox.showwarning('Aviso', \
                 f'Os tribunais dos seguintes processos ainda não foram implementados no programa: \n\
-                    {'\n'.join(f'- {str(x)}' for x in invalidos)}')
+                    {'\n'.join(f'- {x}' for x in invalidos)}')
 
 
         self.file.alterar(result)
