@@ -47,8 +47,6 @@ class Arquivo:
     def inserir(self, button: QPushButton) -> None:
         try:
             self.caminho = askopenfilename()
-            if self.caminho == '':
-                return None
             self.__validar_entrada()
             button.setText(self.caminho[self.caminho.rfind('/') +1:])
             button.setIcon(QPixmap(''))
@@ -61,10 +59,12 @@ class Arquivo:
             messagebox.showerror(title='Aviso', message= error)
 
     def __validar_entrada(self) -> str:
+        if self.caminho == '':
+                return None
         self.__tipo()
-
-        if any(c not in string.ascii_letters for c in self.caminho):
-            self.caminho = self.__formato_ascii()
+        caminho_uni = unidecode(self.caminho)
+        if self.caminho != caminho_uni:
+            self.caminho = self.__renomear(caminho_uni)
 
     def __tipo(self) -> bool:
         if self.caminho[len(self.caminho) -3 :] != self.tipos_validos:
@@ -73,10 +73,9 @@ class Arquivo:
                 f'Formato inválido do arquivo: {self.caminho[ultima_barra+1:]}')
         return True
 
-    def __formato_ascii(self) -> str:
-        caminho_uni = unidecode(self.caminho)
-        os.renames(self.caminho, caminho_uni)
-        return caminho_uni
+    def __renomear(self, caminho) -> str:
+        os.renames(self.caminho, caminho)
+        return caminho
     
     def envio_invalido(self) -> bool:
         return True if len(self.caminho) == 0 else False
@@ -108,8 +107,7 @@ class Arquivo:
         os.startfile(self.caminho)
 
 class Browser:
-    ROOT_FOLDER = Path(__file__).parent
-    CHROME_DRIVER_PATH = ROOT_FOLDER / 'src' / 'drivers' / 'chromedriver.exe'
+    CHROME_DRIVER_PATH = resource_path('src\\drivers\\chromedriver.exe')
 
     def make_chrome_browser(self,*options: str, hide = True) -> webdriver.Chrome:
         chrome_options = webdriver.ChromeOptions()
@@ -252,6 +250,7 @@ class PJE(Tribunal):
 
 class Juiz(QObject):
     valor = Signal(str)
+    progress = Signal(int)
     fim = Signal(OrderedDict)
     WAIT_CAPTCHA = 2
 
@@ -270,7 +269,7 @@ class Juiz(QObject):
             ref = OrderedDict(
                 [(str(x), '') for x in self.num_process]
             )
-            for num in self.num_process:
+            for index, num in enumerate(self.num_process, 1):
                 self.tribunal_atual = self.__apurar(str(num))
                 if self.tribunal_atual == None:
                     ref[str(num)] = ['']
@@ -284,6 +283,7 @@ class Juiz(QObject):
                         self.tribunal_atual.preencher_captcha()
                         resp = self.tribunal_atual.executar()
                     ref[str(num)] = resp
+                self.progress.emit(index)
             
             self.browser.quit()
             self.fim.emit(ref)
@@ -307,12 +307,16 @@ class Juiz(QObject):
         self.tribunal_atual.set_captcha(valor)
 
 class MainWindow(QMainWindow, Ui_MainWindow):
+    MAX_PROGRESS = 100
+
     def __init__(self, parent = None):
         super().__init__(parent)
         self.setupUi(self)
         self.file = Arquivo()
-
-        self.logo.setPixmap(QPixmap(resource_path('src\\imgs\\procc-icon.ico')))
+        self.setWindowIcon((QIcon(
+            resource_path('src\\imgs\\procss-icon.ico'))))
+        self.logo.setPixmap(QPixmap(
+            resource_path('src\\imgs\\procss-hori.png')))
         icon = QIcon()
         icon.addFile(resource_path("src\\imgs\\upload-icon.png"), QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.pushButton_2.setIcon(icon)
@@ -332,8 +336,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             
             self.exec_load(True)
             self.pushButton.setDisabled(True)
+            list_processos = self.file.ler()
 
-            self.juiz = Juiz(self.file.ler())
+            self.posicao = self.MAX_PROGRESS / len(list_processos)
+            self.juiz = Juiz(list_processos)
             self._thread = QThread()
 
             self.juiz.moveToThread(self._thread)
@@ -342,7 +348,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.juiz.fim.connect(self._thread.deleteLater)
             self.juiz.fim.connect(self.encerramento)
             self._thread.finished.connect(self.juiz.deleteLater)
-            self.juiz.valor.connect(self.progress) 
+            self.juiz.valor.connect(self.to_captcha) 
+            self.juiz.progress.connect(self.to_progress)
 
             self._thread.start()  
         except Exception as err:
@@ -371,9 +378,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 falhas.append(key)
         return falhas
     
-    def progress(self, nome_img):
+    def to_captcha(self, nome_img):
         self.label_5.setPixmap(QPixmap(nome_img))
         self.exec_load(False, 2)
+
+    def to_progress(self, valor):
+        self.progressBar.setValue(self.posicao * valor)
 
     def enviar_resp(self):
         self.juiz.set_captcha(self.lineEdit.text())
