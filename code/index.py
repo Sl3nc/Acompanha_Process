@@ -103,7 +103,7 @@ class Arquivo:
                 ws.cell(index, self.COL_TEXT, '')
 
             for movimento in lista_movimentos:
-                if movimento[:11] not in ws.cell(index, self.COL_TEXT).value:
+                if movimento[:11] not in str(ws.cell(index, self.COL_TEXT).value):
                     ws.cell(index, self.COL_TEXT).value = \
                         f'{ws.cell(index, self.COL_TEXT).value} **{movimento}'
 
@@ -284,7 +284,6 @@ class Juiz(QObject):
                 self.processo(ref, num)
                 self.progress.emit(index)
 
-            print(ref)
             self.browser.quit()
             self.fim.emit(ref)
 
@@ -297,7 +296,7 @@ class Juiz(QObject):
         if self.tribunal_atual == None:
             ref[num] = ['']
         else:
-                    #TODO PESQUISA PROCESSO
+            #TODO PESQUISA PROCESSO
             self.tribunal_atual.acessar_processo(num)
             resp = self.tribunal_atual.executar()
             while type(resp) == str:
