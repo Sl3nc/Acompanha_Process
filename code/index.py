@@ -266,7 +266,7 @@ class Juiz(QObject):
         super().__init__()
         self.num_process = num_process
         self.valor_janela = ''
-        self.browser = Browser().make_chrome_browser(hide=False)
+        self.browser = Browser().make_chrome_browser(hide=True)
         self.ref = {
             '13': PJE(self.browser),
             '01': EPROC(self.browser)
@@ -278,29 +278,34 @@ class Juiz(QObject):
                 [(str(x), '') for x in self.num_process]
             )
             for index, num in enumerate(self.num_process, 1):
-                num = num[0][:25]
-                print(num)
-                self.tribunal_atual = self.__apurar(str(num))
-                if self.tribunal_atual == None:
-                    ref[str(num)] = ['']
+                if num != None:
+                    num = str(num[0])[:25]
                 else:
-                    #TODO PESQUISA PROCESSO
-                    self.tribunal_atual.acessar_processo(str(num))
-                    resp = self.tribunal_atual.executar()
-                    while type(resp) == str:
-                        self.valor.emit(resp)
-                        self.tribunal_atual.esperar_captcha()
-                        self.tribunal_atual.preencher_captcha()
-                        resp = self.tribunal_atual.executar()
-                    ref[str(num)] = resp
+                    num = ''
+                self.processo(ref, num)
                 self.progress.emit(index)
-            
+
             self.browser.quit()
             self.fim.emit(ref)
 
         # except Exception as err:
         #     traceback.print_exc()
         #     messagebox.showerror('Aviso', err)
+
+    def processo(self, ref, num):
+        self.tribunal_atual = self.__apurar(num)
+        if self.tribunal_atual == None:
+            ref[num] = ['']
+        else:
+                    #TODO PESQUISA PROCESSO
+            self.tribunal_atual.acessar_processo(num)
+            resp = self.tribunal_atual.executar()
+            while type(resp) == str:
+                self.valor.emit(resp)
+                self.tribunal_atual.esperar_captcha()
+                self.tribunal_atual.preencher_captcha()
+                resp = self.tribunal_atual.executar()
+            ref[num] = resp
     
     def __apurar(self, num:str) -> Tribunal:
         if len(num) < 16:
@@ -374,7 +379,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         for index, i in enumerate(invalidos):
             if len(i) != 0:
                 messagebox.showwarning('Aviso', \
-                    f'{self.texto[index]} \n {'\n'.join(f'- {x}' for x in i)}')
+                    f'{self.text_aviso[index]} \n {'\n'.join(f'- {x}' for x in i)}')
             
         self.file.alterar(result)
         self.file.abrir()
