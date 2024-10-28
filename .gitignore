@@ -3,3 +3,6 @@ code/src/__pycache__
 *~
 *.autosave
 *.png
+/build
+dist
+*.spec
