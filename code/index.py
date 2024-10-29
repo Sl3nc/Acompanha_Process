@@ -96,7 +96,6 @@ class Arquivo:
         #TODO Alterar
         wb = load_workbook(self.caminho)
         ws = wb[self.NOME_SHEET]
-        valor_novo = []
         for index, lista_movimentos in enumerate(conteudo.values(), 2):
             #print(f'{index} - {lista_movimentos}')
             if lista_movimentos == ['']:
@@ -105,17 +104,12 @@ class Arquivo:
             if ws.cell(index, self.COL_TEXT).value == None:
                 ws.cell(index, self.COL_TEXT, '')
 
-            valor_novo.clear()
-            for movimento in lista_movimentos:
-                if movimento[:11] not in str(ws.cell(index, self.COL_TEXT).value):
-                    valor_novo.append(CellRichText(['**', \
-                            TextBlock(InlineFont(b=True, sz=24), movimento)
-                    ]))
+            s = '**'.join(str(movimento) for movimento in lista_movimentos\
+                if movimento[:11] not in str(ws.cell(index, self.COL_TEXT).value))
 
-            valor_antigo = ws.cell(index, self.COL_TEXT).value
-            ws.cell(index, self.COL_TEXT).value = [x for x in valor_novo]
-            ws.cell(index, self.COL_TEXT).value = \
-                ws.cell(index, self.COL_TEXT).value + valor_antigo
+            ws.cell(index, self.COL_TEXT).value = CellRichText(
+                [TextBlock(InlineFont(b=True), s), ws.cell(index, self.COL_TEXT).value]
+            )
 
         wb.save(self.caminho)
           
