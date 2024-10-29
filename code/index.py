@@ -11,7 +11,10 @@ from abc import abstractmethod, ABCMeta
 from collections import OrderedDict
 
 import pandas as pd
+from pandas.errors import ParserError
 from openpyxl import load_workbook
+from openpyxl.cell.text import InlineFont
+from openpyxl.cell.rich_text import TextBlock, CellRichText
 
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
@@ -49,6 +52,8 @@ class Arquivo:
     def inserir(self, button: QPushButton) -> None:
         try:
             self.caminho = askopenfilename()
+            if self.caminho == '':
+                return
             self.__validar_entrada()
             with open(self.caminho, 'r+'):
                 ...
@@ -85,27 +90,32 @@ class Arquivo:
         return True if len(self.caminho) == 0 else False
 
     def ler(self) -> list:
-        try:
-            return pd.read_excel(self.caminho, usecols='E').dropna().values.tolist()
-        except:
-            Exception('Erro ao ler o arquivo, certifique-se de ter inserido o arquivo correto')
+        return pd.read_excel(self.caminho, usecols='E').dropna().values.tolist()
 
     def alterar(self, conteudo: OrderedDict) -> None:
         #TODO Alterar
         wb = load_workbook(self.caminho)
         ws = wb[self.NOME_SHEET]
+        valor_novo = []
         for index, lista_movimentos in enumerate(conteudo.values(), 2):
-            print(f'{index} - {lista_movimentos}')
+            #print(f'{index} - {lista_movimentos}')
             if lista_movimentos == ['']:
                 continue
 
             if ws.cell(index, self.COL_TEXT).value == None:
                 ws.cell(index, self.COL_TEXT, '')
 
+            valor_novo.clear()
             for movimento in lista_movimentos:
                 if movimento[:11] not in str(ws.cell(index, self.COL_TEXT).value):
-                    ws.cell(index, self.COL_TEXT).value = \
-                        f'{ws.cell(index, self.COL_TEXT).value} **{movimento}'
+                    valor_novo.append(CellRichText(['**', \
+                            TextBlock(InlineFont(b=True, sz=24), movimento)
+                    ]))
+
+            valor_antigo = ws.cell(index, self.COL_TEXT).value
+            ws.cell(index, self.COL_TEXT).value = [x for x in valor_novo]
+            ws.cell(index, self.COL_TEXT).value = \
+                ws.cell(index, self.COL_TEXT).value + valor_antigo
 
         wb.save(self.caminho)
           
@@ -273,7 +283,7 @@ class Juiz(QObject):
         }
 
     def pesquisar(self):
-        # try:
+        try:
             ref = OrderedDict(
                 [(str(x[0])[:25], '') for x in self.num_process]
             )
@@ -287,9 +297,9 @@ class Juiz(QObject):
             self.browser.quit()
             self.fim.emit(ref)
 
-        # except Exception as err:
-        #     traceback.print_exc()
-        #     messagebox.showerror('Aviso', err)
+        except Exception as err:
+            traceback.print_exc()
+            messagebox.showerror('Aviso', err)
 
     def processo(self, ref, num):
         self.tribunal_atual = self.__apurar(num)
@@ -351,11 +361,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if self.file.envio_invalido():
                 raise Exception('Favor anexar seu relatório de processos')
             
+            list_processos = self.file.ler()
+            self.posicao = self.MAX_PROGRESS / len(list_processos)
+
             self.exec_load(True)
             self.pushButton.setDisabled(True)
-            list_processos = self.file.ler()
 
-            self.posicao = self.MAX_PROGRESS / len(list_processos)
             self.juiz = Juiz(list_processos)
             self._thread = QThread()
 
@@ -369,10 +380,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.juiz.progress.connect(self.to_progress)
 
             self._thread.start()  
+
+        except ParserError:
+            messagebox.showerror(title='Aviso', message= 'Erro ao ler o arquivo, certifique-se de ter inserido o arquivo correto')
         except Exception as err:
             traceback.print_exc()
             messagebox.showerror('Aviso', err)
-                                    #dict{str:list[str]}
+
     def encerramento(self, result: OrderedDict):
         #TODO encerramento
         invalidos = self.filtro(result)
