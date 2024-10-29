@@ -104,13 +104,12 @@ class Arquivo:
             if ws.cell(index, self.COL_TEXT).value == None:
                 ws.cell(index, self.COL_TEXT, '')
 
-            for movimento in lista_movimentos:
-                if movimento[:11] not in str(ws.cell(index, self.COL_TEXT).value):
-                    cell_text = CellRichText(
-                        TextBlock(InlineFont(b=True), movimento)
-                    )
-                    ws.cell(index, self.COL_TEXT).value = \
-                        f'{ws.cell(index, self.COL_TEXT).value} **{cell_text}'
+            s = '**'.join(str(movimento) for movimento in lista_movimentos\
+                if movimento[:11] not in str(ws.cell(index, self.COL_TEXT).value))
+
+            ws.cell(index, self.COL_TEXT).value = CellRichText(
+                [TextBlock(InlineFont(b=True), s), ws.cell(index, self.COL_TEXT).value]
+            )
 
         wb.save(self.caminho)
           

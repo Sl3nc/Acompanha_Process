@@ -1,8 +1,8 @@
 /venv
-code/src/
+code/src/__pycache__
 /build
 /dist
-__pycache__
+*.spec
 *~
 *.autosave
 *.png
