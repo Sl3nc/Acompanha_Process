@@ -177,6 +177,10 @@ class Tribunal:
     def set_captcha(self, valor):
         self.valor_captcha = valor
 
+class ECAC(Tribunal):
+    LINK_BASE = 'https://comprot.fazenda.gov.br/comprotegov/site/index.html#ajax/processo-consulta.html'
+    
+
 class EPROC(Tribunal):
     LINK_BASE = 'https://eproc1g.trf6.jus.br/eproc/externo_controlador.php?acao=processo_consulta_publica'
     INPUT = 'txtNumProcesso'
