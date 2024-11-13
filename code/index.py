@@ -123,7 +123,7 @@ class Browser:
     def make_chrome_browser(self,*options: str, hide = True) -> webdriver.Chrome:
         chrome_options = webdriver.ChromeOptions()
 
-        # chrome_options.add_argument('--headless')
+        chrome_options.add_argument('--headless')
         if options is not None:
             for option in options:
                 chrome_options.add_argument(option)
@@ -144,15 +144,15 @@ class Browser:
 
 class Captcha:
     WAIT = 2
-    NOME_IMG = ''
+    NOME_IMG = 'image.png'
 
-    def __init__(self, elem_img, elem_input):
+    def __init__(self, elem_img, elem_input, browser):
         self.resp = ''
-        self.browser = ''
+        self.browser = browser
         self.elem_input = elem_input
         self.elem_img = elem_img
 
-    def esperar_captcha(self):
+    def esperar(self):
         self.resp = ''
         while self.resp == '':
             sleep(self.WAIT)
@@ -161,10 +161,10 @@ class Captcha:
         self.browser.find_element(By.ID, self.elem_input)\
             .send_keys(self.resp)
 
-    def set_captcha(self, valor):
+    def set_valor(self, valor):
         self.resp = valor
 
-    def imagem_captcha(self):
+    def imagem(self):
         self.browser.find_element(By.CSS_SELECTOR, self.elem_img).screenshot(self.NOME_IMG)
         return self.NOME_IMG
 
@@ -178,7 +178,7 @@ class Tribunal:
         pass
 
     @abstractmethod
-    def executar(self) -> list[str]:
+    def executar(self) -> list[str] | Captcha:
         raise NotImplementedError("Implemente este método")
     
     @abstractmethod
@@ -205,7 +205,7 @@ class EPROC(Tribunal):
 
     def executar(self):
         if self.tentar_consulta() == False:
-            return Captcha(self.IMG_ELEMENT, self.INPUT_ELEMENT)
+            return Captcha(self.IMG_ELEMENT, self.INPUT_ELEMENT, self.browser)
         return self.conteudo()
     
     def acessar_processo(self, num: str) -> None:
@@ -410,18 +410,19 @@ class Juiz(QObject):
             messagebox.showerror('Aviso', err)
 
     def processo(self, ref, num):
-        self.tribunal_atual = self.__apurar(num)
-        if self.tribunal_atual == None:
+        tribunal_atual = self.__apurar(num)
+        if tribunal_atual == None:
             ref[num] = ['']
         else:
             #TODO PESQUISA PROCESSO
-            self.tribunal_atual.acessar_processo(num)
-            resp = self.tribunal_atual.executar()
-            while type(resp) == str:
-                self.valor.emit(resp)
-                self.tribunal_atual.esperar_captcha()
-                self.tribunal_atual.preencher_captcha()
-                resp = self.tribunal_atual.executar()
+            tribunal_atual.acessar_processo(num)
+            resp = tribunal_atual.executar()
+            while type(resp) == Captcha:
+                self.captcha = resp
+                self.valor.emit(self.captcha.imagem())
+                self.captcha.esperar()
+                self.captcha.preencher()
+                resp = tribunal_atual.executar()
             ref[num] = resp
     
     def __apurar(self, num:str) -> Tribunal:
@@ -433,7 +434,7 @@ class Juiz(QObject):
         return None
 
     def set_captcha(self, valor) -> None:
-        self.tribunal_atual.set_captcha(valor)
+        self.captcha.set_valor(valor)
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     MAX_PROGRESS = 100
