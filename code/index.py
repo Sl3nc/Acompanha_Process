@@ -1,6 +1,6 @@
 from pathlib import Path
 from time import sleep
-from PIL import Image
+from PIL import Image, ImageFont, ImageDraw
 
 import os
 import sys
@@ -16,11 +16,11 @@ from openpyxl import load_workbook
 from openpyxl.cell.text import InlineFont
 from openpyxl.cell.rich_text import TextBlock, CellRichText
 
+from selenium.webdriver.remote.webelement import WebElement
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from PySide6.QtWidgets import (
@@ -142,13 +142,37 @@ class Browser:
 
         return browser
 
+class Captcha:
+    WAIT = 2
+    NOME_IMG = ''
+
+    def __init__(self, elem_img, elem_input):
+        self.resp = ''
+        self.browser = ''
+        self.elem_input = elem_input
+        self.elem_img = elem_img
+
+    def esperar_captcha(self):
+        self.resp = ''
+        while self.resp == '':
+            sleep(self.WAIT)
+
+    def preencher(self):
+        self.browser.find_element(By.ID, self.elem_input)\
+            .send_keys(self.resp)
+
+    def set_captcha(self, valor):
+        self.resp = valor
+
+    def imagem_captcha(self):
+        self.browser.find_element(By.CSS_SELECTOR, self.elem_img).screenshot(self.NOME_IMG)
+        return self.NOME_IMG
+
 class Tribunal:
     TIME_TO_WAIT = 1
-    WAIT_CAPTCHA = 2
-    CAPTCHA = ''
     __metaclass__ = ABCMeta
 
-    def __init__(self, browser) -> None:
+    def __init__(self, browser: WebElement) -> None:
         self.valor_captcha = ''
         self.browser = browser
         pass
@@ -164,41 +188,24 @@ class Tribunal:
     @abstractmethod
     def conteudo(self):
         raise NotImplementedError("Implemente este método")
-    
-    def esperar_captcha(self):
-        self.valor_captcha = ''
-        while self.valor_captcha == '':
-            sleep(self.WAIT_CAPTCHA)
-
-    def preencher_captcha(self):
-        self.browser.find_element(By.ID, self.CAPTCHA)\
-            .send_keys(self.valor_captcha)
-    
-    def set_captcha(self, valor):
-        self.valor_captcha = valor
-
-class ECAC(Tribunal):
-    LINK_BASE = 'https://comprot.fazenda.gov.br/comprotegov/site/index.html#ajax/processo-consulta.html'
-    
 
 class EPROC(Tribunal):
     LINK_BASE = 'https://eproc1g.trf6.jus.br/eproc/externo_controlador.php?acao=processo_consulta_publica'
     INPUT = 'txtNumProcesso'
     CONTULTAR = 'sbmNovo'
+    IMG_ELEMENT = '#lblInfraCaptcha > img'
+    INPUT_ELEMENT = 'txtInfraCaptcha'
     TABLE_CONTENT = '#divInfraAreaProcesso > table > tbody'
     FRAME_PRINT = [300, 430, 430, 480]
-    NOME_IMG = 'image.png'
 
-    def __init__(self, browser) -> None:
+    def __init__(self, browser: WebElement) -> None:
         super().__init__(browser)
         self.CAPTCHA = 'txtInfraCaptcha'
         pass
 
     def executar(self):
         if self.tentar_consulta() == False:
-            self.img = self.imagem_captcha()
-            return self.img
-        os.remove(self.img)
+            return Captcha(self.IMG_ELEMENT, self.INPUT_ELEMENT)
         return self.conteudo()
     
     def acessar_processo(self, num: str) -> None:
@@ -217,11 +224,6 @@ class EPROC(Tribunal):
         except:
             return True
         return False
-        
-    def imagem_captcha(self):
-        self.browser.save_screenshot(self.NOME_IMG)
-        Image.open(self.NOME_IMG).crop([300, 430, 430, 480]).save(self.NOME_IMG)
-        return self.NOME_IMG
 
     def conteudo(self):
         tbody = self.browser.find_element(By.CSS_SELECTOR, self.TABLE_CONTENT)
@@ -229,6 +231,71 @@ class EPROC(Tribunal):
         rows.pop(0)
         return [x.text[3:] for x in rows if x.text != '']
 
+class TRT(Tribunal):
+    LINK_BASE = 'https://pje-consulta.trt3.jus.br/consultaprocessual/detalhe-processo/{0}'
+
+    def __init__(self, browser) -> None:
+        super().__init__(browser)
+        self.cord_resp = [
+            [-100,-100], [0,-100], [100,-100],
+            [-100,0], [0,0], [100,0],
+            [-100,100], [0,100], [100,100]
+        ] 
+
+        #Horizontal, Vertical
+        self.cord_img = {
+            '1':(5, 0),
+            '2':(110, 0),
+            '3':(220, 0),
+            '4':(5, 100),
+            '5':(110, 100),
+            '6':(220, 100),
+            '7':(5, 205),
+            '8':(110, 205),
+            '9':(220, 205),
+        }
+
+        self.nome_img = 'oi.png'
+        self.CAPTCHA2 = '#root > div > form > div:nth-child(3) > div > div:nth-child(2) > canvas'
+        pass
+
+    def acessar_processo(self, num_processo: str) -> None:
+        process_str = ''
+        ultima_posic = 0
+        num_processo = num_processo.replace('.','').replace('-','')
+        for posic, value in {7:'-',9:'.',13:'.',14:'.',16:'.',20:''}.items():
+            process_str = process_str + num_processo[ultima_posic : posic] + value
+            ultima_posic = posic
+
+        self.browser.get(self.LINK_BASE.format(process_str))
+
+    def executar(self):
+        if self.tentar_consulta() == True:
+            self.img = self.imagem_captcha()
+            return self.img
+        # os.remove(self.img)
+        return self.conteudo()
+
+    def existe_captcha(self) -> bool:
+        try:
+            self.browser.find_element(By.ID, 'amzn-captcha-verify-button').click()
+            sleep(self.TIME_TO_WAIT)
+        except:
+            return False
+        return True
+    
+    def foto_captcha(self):
+        self.browser.find_element(By.CSS_SELECTOR, '#root > div > form > div:nth-child(3) > div > div:nth-child(2) > canvas').screenshot(self.nome_img)
+
+        font = ImageFont.truetype("C:\\Windows\\Fonts\\Verdanab.ttf", 50)
+        img = Image.open(self.nome_img)
+        draw = ImageDraw.Draw(img)
+
+        for number, posic in self.ref_img.items():
+            draw.text(posic, number, 'red', font=font)
+
+        return self.nome_img      
+    
 class PJE(Tribunal):
     CLASS_ELEMENTS = 'col-sm-12'
     INPUT = 'fPP:numProcesso-inputNumeroProcessoDecoration:numProcesso-inputNumeroProcesso'
@@ -296,6 +363,16 @@ class TST(Tribunal):
         
     def conteudo(self, rows):
         return [x.text for x in rows[1:] if x.text != '']
+        
+class ICaptchaGrid:
+    def preencher_grid(self: Tribunal):
+        el = self.browser.find_element(By.CSS_SELECTOR, self.CAPTCHA2)
+        action = webdriver.common.action_chains.ActionChains(self.browser)
+
+        for var1, var2 in [[0,100], [100,100]]:
+            action.move_to_element_with_offset(el, var1, var2)
+            action.click()
+            action.perform()
 
 class Juiz(QObject):
     valor = Signal(str)
@@ -306,7 +383,6 @@ class Juiz(QObject):
     def __init__(self, num_process: list[str]) -> None:
         super().__init__()
         self.num_process = num_process
-        self.valor_janela = ''
         self.browser = Browser().make_chrome_browser(hide=True)
         self.ref = {
             '13': PJE(self.browser),
