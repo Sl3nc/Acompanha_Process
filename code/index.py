@@ -123,7 +123,6 @@ class Browser:
     def make_chrome_browser(self,*options: str, hide = True) -> webdriver.Chrome:
         chrome_options = webdriver.ChromeOptions()
 
-        chrome_options.add_argument('--headless')
         if options is not None:
             for option in options:
                 chrome_options.add_argument(option)
@@ -143,42 +142,98 @@ class Browser:
         return browser
 
 class Captcha:
+    #TODO CAPTCHA
     WAIT = 2
     NOME_IMG = 'image.png'
 
-    def __init__(self, elem_img, elem_input, browser):
+    def __init__(self, elem_img: str, elem_input: str, browser: WebElement):
         self.resp = ''
         self.browser = browser
         self.elem_input = elem_input
         self.elem_img = elem_img
 
-    def esperar(self):
+    @abstractmethod
+    def preencher(self) -> None:
+        return NotImplementedError("Implemente este método")
+
+    @abstractmethod
+    def imagem(self) -> str:
+        return NotImplementedError("Implemente este método")
+
+    def esperar(self) -> None:
         self.resp = ''
         while self.resp == '':
             sleep(self.WAIT)
 
-    def preencher(self):
+    def set_valor(self, valor) -> None:
+        self.resp = valor
+
+class CaptchaSimples(Captcha):
+    def __init__(self, elem_img: str, elem_input: str, browser: WebElement):
+        super().__init__(elem_img, elem_input, browser)
+
+    def preencher(self) -> None:
         self.browser.find_element(By.ID, self.elem_input)\
             .send_keys(self.resp)
 
-    def set_valor(self, valor):
-        self.resp = valor
-
-    def imagem(self):
+    def imagem(self) -> str:
         self.browser.find_element(By.CSS_SELECTOR, self.elem_img).screenshot(self.NOME_IMG)
         return self.NOME_IMG
+
+class CaptchaGrid(Captcha):
+    def __init__(self, elem_img: str, elem_input: str, browser: WebElement):
+        super().__init__(elem_img, elem_input, browser)
+
+        self.cord_resp = [
+            [-100,-100], [0,-100], [100,-100],
+            [-100,0], [0,0], [100,0],
+            [-100,100], [0,100], [100,100]
+        ] 
+
+        #Horizontal, Vertical
+        self.cord_img = {
+            '1':(5, 0),
+            '2':(110, 0),
+            '3':(220, 0),
+            '4':(5, 100),
+            '5':(110, 100),
+            '6':(220, 100),
+            '7':(5, 205),
+            '8':(110, 205),
+            '9':(220, 205),
+        }
+
+    def preencher(self):
+        el = self.browser.find_element(By.CSS_SELECTOR, self.CAPTCHA2)
+        action = webdriver.common.action_chains.ActionChains(self.browser)
+
+        for var1, var2 in [[0,100], [100,100]]:
+            action.move_to_element_with_offset(el, var1, var2)
+            action.click()
+            action.perform()
+
+    def imagem(self):
+        self.browser.find_element(By.CSS_SELECTOR, '#root > div > form > div:nth-child(3) > div > div:nth-child(2) > canvas').screenshot(self.nome_img)
+
+        font = ImageFont.truetype("C:\\Windows\\Fonts\\Verdanab.ttf", 50)
+        img = Image.open(self.nome_img)
+        draw = ImageDraw.Draw(img)
+
+        for number, posic in self.ref_img.items():
+            draw.text(posic, number, 'red', font=font)
+
+        return self.nome_img      
 
 class Tribunal:
     TIME_TO_WAIT = 1
     __metaclass__ = ABCMeta
 
     def __init__(self, browser: WebElement) -> None:
-        self.valor_captcha = ''
         self.browser = browser
         pass
 
     @abstractmethod
-    def executar(self) -> list[str] | Captcha:
+    def executar(self) -> list[str] | CaptchaSimples:
         raise NotImplementedError("Implemente este método")
     
     @abstractmethod
@@ -190,6 +245,7 @@ class Tribunal:
         raise NotImplementedError("Implemente este método")
 
 class EPROC(Tribunal):
+    #TODO EPROC
     LINK_BASE = 'https://eproc1g.trf6.jus.br/eproc/externo_controlador.php?acao=processo_consulta_publica'
     INPUT = 'txtNumProcesso'
     CONTULTAR = 'sbmNovo'
@@ -204,15 +260,17 @@ class EPROC(Tribunal):
         pass
 
     def executar(self):
-        if self.tentar_consulta() == False:
-            return Captcha(self.IMG_ELEMENT, self.INPUT_ELEMENT, self.browser)
+        if self.existe_captcha() == False:
+            return CaptchaSimples(self.IMG_ELEMENT, self.INPUT_ELEMENT, self.browser)
         return self.conteudo()
     
     def acessar_processo(self, num: str) -> None:
         self.browser.get(self.LINK_BASE)
+        sleep(1)
+        num = num.replace('.','').replace('-','')
         self.browser.find_element(By.ID, self.INPUT).send_keys(num)
 
-    def tentar_consulta(self) -> bool:
+    def existe_captcha(self) -> bool:
         self.browser.find_element(By.ID, self.CONTULTAR).click()
         sleep(self.TIME_TO_WAIT)
         try:
@@ -233,30 +291,11 @@ class EPROC(Tribunal):
 
 class TRT(Tribunal):
     LINK_BASE = 'https://pje-consulta.trt3.jus.br/consultaprocessual/detalhe-processo/{0}'
+    
+    CAPTCHA_GRID = '#root > div > form > div:nth-child(3) > div > div:nth-child(2) > canvas'
 
     def __init__(self, browser) -> None:
         super().__init__(browser)
-        self.cord_resp = [
-            [-100,-100], [0,-100], [100,-100],
-            [-100,0], [0,0], [100,0],
-            [-100,100], [0,100], [100,100]
-        ] 
-
-        #Horizontal, Vertical
-        self.cord_img = {
-            '1':(5, 0),
-            '2':(110, 0),
-            '3':(220, 0),
-            '4':(5, 100),
-            '5':(110, 100),
-            '6':(220, 100),
-            '7':(5, 205),
-            '8':(110, 205),
-            '9':(220, 205),
-        }
-
-        self.nome_img = 'oi.png'
-        self.CAPTCHA2 = '#root > div > form > div:nth-child(3) > div > div:nth-child(2) > canvas'
         pass
 
     def acessar_processo(self, num_processo: str) -> None:
@@ -283,18 +322,6 @@ class TRT(Tribunal):
         except:
             return False
         return True
-    
-    def foto_captcha(self):
-        self.browser.find_element(By.CSS_SELECTOR, '#root > div > form > div:nth-child(3) > div > div:nth-child(2) > canvas').screenshot(self.nome_img)
-
-        font = ImageFont.truetype("C:\\Windows\\Fonts\\Verdanab.ttf", 50)
-        img = Image.open(self.nome_img)
-        draw = ImageDraw.Draw(img)
-
-        for number, posic in self.ref_img.items():
-            draw.text(posic, number, 'red', font=font)
-
-        return self.nome_img      
     
 class PJE(Tribunal):
     CLASS_ELEMENTS = 'col-sm-12'
@@ -363,16 +390,6 @@ class TST(Tribunal):
         
     def conteudo(self, rows):
         return [x.text for x in rows[1:] if x.text != '']
-        
-class ICaptchaGrid:
-    def preencher_grid(self: Tribunal):
-        el = self.browser.find_element(By.CSS_SELECTOR, self.CAPTCHA2)
-        action = webdriver.common.action_chains.ActionChains(self.browser)
-
-        for var1, var2 in [[0,100], [100,100]]:
-            action.move_to_element_with_offset(el, var1, var2)
-            action.click()
-            action.perform()
 
 class Juiz(QObject):
     valor = Signal(str)
@@ -417,7 +434,7 @@ class Juiz(QObject):
             #TODO PESQUISA PROCESSO
             tribunal_atual.acessar_processo(num)
             resp = tribunal_atual.executar()
-            while type(resp) == Captcha:
+            while type(resp) == CaptchaSimples:
                 self.captcha = resp
                 self.valor.emit(self.captcha.imagem())
                 self.captcha.esperar()
