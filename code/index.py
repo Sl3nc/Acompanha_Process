@@ -284,10 +284,13 @@ class EPROC(Tribunal):
         return False
 
     def conteudo(self):
-        tbody = self.browser.find_element(By.CSS_SELECTOR, self.TABLE_CONTENT)
-        rows = tbody.find_elements(By.TAG_NAME, 'tr')
-        rows.pop(0)
-        return [x.text[3:] for x in rows if x.text != '']
+        try:
+            tbody = self.browser.find_element(By.CSS_SELECTOR, self.TABLE_CONTENT)
+            rows = tbody.find_elements(By.TAG_NAME, 'tr')
+            rows.pop(0)
+            return [x.text[3:] for x in rows if x.text != '']
+        except NoSuchElementException:
+            return ['~']
 
 class TRT(Tribunal):
     LINK_BASE = 'https://pje-consulta.trt3.jus.br/consultaprocessual/detalhe-processo/{0}'
@@ -400,7 +403,7 @@ class Juiz(QObject):
     def __init__(self, num_process: list[str]) -> None:
         super().__init__()
         self.num_process = num_process
-        self.browser = Browser().make_chrome_browser(hide=True)
+        self.browser = Browser().make_chrome_browser(hide=False)
         self.ref = {
             '13': PJE(self.browser),
             '01': EPROC(self.browser),
@@ -419,12 +422,15 @@ class Juiz(QObject):
                 self.processo(ref, num)
                 self.progress.emit(index)
 
-            self.browser.quit()
-            self.fim.emit(ref)
-
+        except NoSuchElementException as err:
+            traceback.print_exc()
+            messagebox.showerror('Aviso', f'Erro na busca por elementos no site, favor comunicar o desenvolvedor. Erro: \n {err}')
         except Exception as err:
             traceback.print_exc()
             messagebox.showerror('Aviso', err)
+        finally:
+            self.browser.close()
+            self.fim.emit(ref)
 
     def processo(self, ref, num):
         tribunal_atual = self.__apurar(num)
