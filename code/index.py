@@ -35,6 +35,10 @@ from tkinter.filedialog import askopenfilename
 from pathlib import Path
 
 class Arquivo:
+    """
+    Classe responsável por manipular o arquivo Excel de entrada e saída.
+    Permite inserir, validar, ler, alterar e abrir o arquivo de processos.
+    """
     NOME_SHEET = 'Deltaprice Judiciais'
 
     def __init__(self) -> None:
@@ -44,6 +48,10 @@ class Arquivo:
         pass
 
     def inserir(self, button: QPushButton) -> None:
+        """
+        Abre um diálogo para o usuário selecionar o arquivo de processos.
+        Valida o arquivo e atualiza o botão com o nome do arquivo selecionado.
+        """
         try:
             self.caminho = askopenfilename()
             if self.caminho == '':
@@ -62,6 +70,9 @@ class Arquivo:
             messagebox.showerror(title='Aviso', message= error)
 
     def __validar_entrada(self) -> str:
+        """
+        Valida o caminho do arquivo, verifica o tipo e remove acentos do nome se necessário.
+        """
         if self.caminho == '':
             return None
         self.__tipo()
@@ -70,6 +81,9 @@ class Arquivo:
             self.caminho = self.__renomear(caminho_uni)
 
     def __tipo(self) -> bool:
+        """
+        Verifica se o arquivo possui a extensão correta.
+        """
         if self.caminho[len(self.caminho) -3 :] != self.tipos_validos:
             ultima_barra = self.caminho.rfind('/')
             raise Exception(
@@ -77,16 +91,28 @@ class Arquivo:
         return True
 
     def __renomear(self, caminho) -> str:
+        """
+        Renomeia o arquivo removendo acentos do nome.
+        """
         os.renames(self.caminho, caminho)
         return caminho
     
     def envio_invalido(self) -> bool:
+        """
+        Retorna True se nenhum arquivo foi selecionado.
+        """
         return True if len(self.caminho) == 0 else False
 
     def ler(self) -> list:
+        """
+        Lê a coluna E do arquivo Excel e retorna uma lista de números de processos.
+        """
         return pd.read_excel(self.caminho, usecols='E').dropna().values.tolist()
 
     def alterar(self, conteudo: OrderedDict) -> None:
+        """
+        Altera o conteúdo do arquivo Excel, inserindo os resultados das consultas.
+        """
         #TODO Alterar
         wb = load_workbook(self.caminho)
         ws = wb[self.NOME_SHEET]
@@ -108,13 +134,22 @@ class Arquivo:
         wb.save(self.caminho)
           
     def abrir(self) -> None:
+        """
+        Abre o arquivo Excel gerado para o usuário.
+        """
         messagebox.showinfo(title='Aviso', message='Abrindo o arquivo gerado!')
         os.startfile(self.caminho)
 
 class Browser:
+    """
+    Classe utilitária para criar e configurar uma instância do navegador Chrome via Selenium.
+    """
     CHROME_DRIVER_PATH = Path(__file__).parent / 'src'/'drivers'/'chromedriver.exe'
 
     def make_chrome_browser(self,*options: str, hide = True) -> webdriver.Chrome:
+        """
+        Cria uma instância do navegador Chrome com as opções fornecidas.
+        """
         chrome_options = webdriver.ChromeOptions()
 
         # chrome_options.add_argument('--headless')
@@ -137,6 +172,9 @@ class Browser:
         return browser
 
 class Tribunal:
+    """
+    Classe abstrata base para tribunais. Define a interface para consulta de processos.
+    """
     TIME_TO_WAIT = 1
     WAIT_CAPTCHA = 2
     CAPTCHA = ''
@@ -149,29 +187,50 @@ class Tribunal:
 
     @abstractmethod
     def executar(self) -> list[str]:
+        """
+        Executa a consulta do processo no tribunal.
+        """
         raise NotImplementedError("Implemente este método")
     
     @abstractmethod
     def acessar_processo(self, num: str) -> None:
+        """
+        Acessa a página do processo no tribunal.
+        """
         raise NotImplementedError("Implemente este método")
     
     @abstractmethod
     def conteudo(self):
+        """
+        Extrai o conteúdo relevante do processo.
+        """
         raise NotImplementedError("Implemente este método")
     
     def esperar_captcha(self):
+        """
+        Aguarda o usuário informar o valor do captcha.
+        """
         self.valor_captcha = ''
         while self.valor_captcha == '':
             sleep(self.WAIT_CAPTCHA)
 
     def preencher_captcha(self):
+        """
+        Preenche o captcha no campo correspondente do site.
+        """
         self.browser.find_element(By.ID, self.CAPTCHA)\
             .send_keys(self.valor_captcha)
     
     def set_captcha(self, valor):
+        """
+        Define o valor do captcha informado pelo usuário.
+        """
         self.valor_captcha = valor
 
 class EPROC(Tribunal):
+    """
+    Implementação do Tribunal EPROC para consulta de processos.
+    """
     LINK_BASE = 'https://eproc1g.trf6.jus.br/eproc/externo_controlador.php?acao=processo_consulta_publica'
     INPUT = 'txtNumProcesso'
     CONTULTAR = 'sbmNovo'
@@ -185,6 +244,9 @@ class EPROC(Tribunal):
         pass
 
     def executar(self):
+        """
+        Executa a consulta no EPROC, tratando captcha se necessário.
+        """
         if self.tentar_consulta() == False:
             self.img = self.imagem_captcha()
             return self.img
@@ -192,10 +254,16 @@ class EPROC(Tribunal):
         return self.conteudo()
     
     def acessar_processo(self, num: str) -> None:
+        """
+        Acessa o processo no EPROC pelo número informado.
+        """
         self.browser.get(self.LINK_BASE)
         self.browser.find_element(By.ID, self.INPUT).send_keys(num)
 
     def tentar_consulta(self) -> bool:
+        """
+        Tenta consultar o processo, verificando se há captcha.
+        """
         self.browser.find_element(By.ID, self.CONTULTAR).click()
         sleep(self.TIME_TO_WAIT)
         try:
@@ -209,17 +277,26 @@ class EPROC(Tribunal):
         return False
         
     def imagem_captcha(self):
+        """
+        Salva e recorta a imagem do captcha para exibição ao usuário.
+        """
         self.browser.save_screenshot(self.NOME_IMG)
         Image.open(self.NOME_IMG).crop([300, 430, 430, 480]).save(self.NOME_IMG)
         return self.NOME_IMG
 
     def conteudo(self):
+        """
+        Extrai o conteúdo da tabela de movimentos do processo.
+        """
         tbody = self.browser.find_element(By.CSS_SELECTOR, self.TABLE_CONTENT)
         rows = tbody.find_elements(By.TAG_NAME, 'tr')
         rows.pop(0)
         return [x.text[3:] for x in rows if x.text != '']
 
 class PJE(Tribunal):
+    """
+    Implementação do Tribunal PJE para consulta de processos.
+    """
     CLASS_ELEMENTS = 'col-sm-12'
     INPUT = 'fPP:numProcesso-inputNumeroProcessoDecoration:numProcesso-inputNumeroProcesso'
     BTN_PESQUISAR = 'fPP:searchProcessos'
@@ -233,10 +310,16 @@ class PJE(Tribunal):
         pass
 
     def acessar_processo(self, num_process: str) -> None:
+        """
+        Acessa o processo no PJE pelo número informado.
+        """
         self.browser.get(self.LINK_BASE)
         self.browser.find_element(By.NAME, self.INPUT).send_keys(num_process)
 
     def executar(self) -> list[str]:
+        """
+        Executa a consulta no PJE e retorna os movimentos do processo.
+        """
         try:
             self.browser.find_element(By.NAME, self.BTN_PESQUISAR).click()
             sleep(self.TIME_TO_WAIT)
@@ -249,12 +332,19 @@ class PJE(Tribunal):
             return ['~']
 
     def conteudo(self, endereco: str) -> list[str]:
+        """
+        Extrai o conteúdo da tabela de eventos do processo.
+        """
         self.browser.get(self.LINK_JANELA + endereco[:len(endereco)-2])
         tbody = self.browser.find_element(By.ID, self.TABELA_CONTEUDO)
         return [x.text for x in tbody.find_elements(By.TAG_NAME, 'span')\
                 if x.text != '' and x.text[0].isnumeric()]
 
 class Juiz(QObject):
+    """
+    Classe responsável por orquestrar a consulta dos processos em diferentes tribunais.
+    Utiliza multithreading para não travar a interface gráfica.
+    """
     valor = Signal(str)
     progress = Signal(int)
     fim = Signal(OrderedDict)
@@ -271,6 +361,9 @@ class Juiz(QObject):
         }
 
     def pesquisar(self):
+        """
+        Realiza a pesquisa dos processos, emitindo sinais de progresso e resultado.
+        """
         try:
             ref = OrderedDict(
                 [(str(x[0])[:25], '') for x in self.num_process]
@@ -290,6 +383,9 @@ class Juiz(QObject):
             messagebox.showerror('Aviso', err)
 
     def processo(self, ref, num):
+        """
+        Realiza a consulta de um processo específico, tratando captcha se necessário.
+        """
         self.tribunal_atual = self.__apurar(num)
         if self.tribunal_atual == None:
             ref[num] = ['']
@@ -305,6 +401,9 @@ class Juiz(QObject):
             ref[num] = resp
     
     def __apurar(self, num:str) -> Tribunal:
+        """
+        Determina o tribunal responsável pelo processo a partir do número.
+        """
         if len(num) < 16:
             return None 
         for key, value in self.ref.items():
@@ -313,9 +412,15 @@ class Juiz(QObject):
         return None
 
     def set_captcha(self, valor) -> None:
+        """
+        Define o valor do captcha para o tribunal atual.
+        """
         self.tribunal_atual.set_captcha(valor)
 
 class MainWindow(QMainWindow, Ui_MainWindow):
+    """
+    Classe principal da interface gráfica. Gerencia as interações do usuário e o fluxo do programa.
+    """
     MAX_PROGRESS = 100
 
     def __init__(self, parent = None):
@@ -352,6 +457,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.enviar_captcha.clicked.connect(self.enviar_resp)
 
     def hard_work(self):
+        """
+        Inicia o processamento dos processos em uma thread separada.
+        """
         try:
             if self.file.envio_invalido():
                 raise Exception('Favor anexar seu relatório de processos')
@@ -383,6 +491,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             messagebox.showerror('Aviso', err)
 
     def encerramento(self, result: OrderedDict):
+        """
+        Finaliza o processamento, exibe avisos e abre o arquivo gerado.
+        """
         #TODO encerramento
         invalidos = self.filtro(result)
         for index, i in enumerate(invalidos):
@@ -397,6 +508,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.pushButton.setDisabled(False)
 
     def filtro(self, result: OrderedDict):
+        """
+        Filtra processos inválidos ou não encontrados.
+        """
         falhas = []
         invalido = []
         for key, value in result.items():
@@ -408,18 +522,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         return [falhas , invalido]
     
     def to_captcha(self, nome_img):
+        """
+        Exibe a imagem do captcha para o usuário.
+        """
         self.label_5.setPixmap(QPixmap(nome_img))
         self.exec_load(False, 2)
 
     def to_progress(self, valor):
+        """
+        Atualiza a barra de progresso.
+        """
         self.progressBar.setValue(self.posicao * valor)
 
     def enviar_resp(self):
+        """
+        Envia a resposta do captcha informada pelo usuário.
+        """
         self.juiz.set_captcha(self.lineEdit.text())
         self.lineEdit.setText('')
         self.exec_load(True)
 
     def exec_load(self, action: bool, to = 1):
+        """
+        Controla a exibição do GIF de carregamento e troca de telas.
+        """
         if action == True:
             self.movie.start()
             self.stackedWidget.setCurrentIndex(to)
@@ -429,6 +555,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 
 if __name__ == '__main__':
+    """
+    Ponto de entrada do programa. Inicializa a aplicação Qt.
+    """
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
