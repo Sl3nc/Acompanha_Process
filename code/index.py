@@ -32,13 +32,7 @@ from src.window_process import Ui_MainWindow
 
 from tkinter import messagebox
 from tkinter.filedialog import askopenfilename
-
-def resource_path(relative_path: str):
-    base_path = getattr(
-        sys,
-        '_MEIPASS',
-        os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base_path, relative_path)
+from pathlib import Path
 
 class Arquivo:
     NOME_SHEET = 'Deltaprice Judiciais'
@@ -118,7 +112,7 @@ class Arquivo:
         os.startfile(self.caminho)
 
 class Browser:
-    CHROME_DRIVER_PATH = resource_path('src\\drivers\\chromedriver.exe')
+    CHROME_DRIVER_PATH = Path(__file__).parent / 'src'/'drivers'/'chromedriver.exe'
 
     def make_chrome_browser(self,*options: str, hide = True) -> webdriver.Chrome:
         chrome_options = webdriver.ChromeOptions()
@@ -335,13 +329,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.file = Arquivo()
         self.setWindowTitle('Consulta Processual')
         self.setWindowIcon((QIcon(
-            resource_path('src\\imgs\\procss-icon.ico'))))
+            (Path(__file__).parent/'src'/'imgs'/'procss-icon.ico').__str__())))
         self.logo.setPixmap(QPixmap(
-            resource_path('src\\imgs\\procss-hori.png')))
+            (Path(__file__).parent/'src'/'imgs'/'procss-hori.png').__str__()))
         icon = QIcon()
-        icon.addFile(resource_path("src\\imgs\\upload-icon.png"), QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon.addFile(
+            (Path(__file__).parent/'src'/'imgs'/'upload-icon.png').__str__(),
+            QSize(),
+            QIcon.Mode.Normal,
+            QIcon.State.Off
+        )
         self.pushButton_2.setIcon(icon)
-        self.movie = QMovie(resource_path("src\\imgs\\load.gif"))
+        self.movie = QMovie(
+            (Path(__file__).parent/'src'/'imgs'/'load.gif').__str__()
+        )
         self.gif_load.setMovie(self.movie)
 
         self.pushButton_2.clicked.connect(
